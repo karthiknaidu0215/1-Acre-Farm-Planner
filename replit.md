@@ -1,6 +1,6 @@
-# [Project name]
+# 1 Acre Farm Planner
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An interactive 3D editor for planning crop zones, plants, roads, and farm infrastructure across a parcel of land.
 
 ## Run & Operate
 
@@ -22,15 +22,25 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/one-acre-land/src/App.jsx` — main planner shell and Three.js scene
+- `artifacts/one-acre-land/src/store.js` — Zustand state and land/crop calculations
+- `artifacts/one-acre-land/src/components/` — farm scene, controls, statistics, and object editing
+- `artifacts/one-acre-land/src/index.css` — planner visual language and responsive layout
+- `artifacts/api-server/` — shared API scaffold; this planner currently runs without a backend
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The planner remains a client-side editor because the imported product stores its active layout in Zustand and does not currently require shared persistence.
+- The 3D scene uses React Three Fiber and Drei; the UI shell remains usable when a browser cannot create a WebGL context.
+- The app is the root web artifact so the planner opens directly from the project preview.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Configure acreage and boundary strips.
+- Define crop zones and planting targets.
+- Auto-arrange or manually place plants.
+- Add and edit gates, roads, buildings, ponds, wells, tanks, sheds, and custom obstacles.
+- Inspect land usage, free area, and crop/infrastructure statistics.
 
 ## User preferences
 
