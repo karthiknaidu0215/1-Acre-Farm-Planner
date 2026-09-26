@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight, Check, ChevronRight, CircleDollarSign, Download, FileText, Leaf, Library,
   LogOut, Map, MapPinned, Menu, Minus, Pencil, Plus, Receipt, Search, Settings2,
-  Shield, Sprout, Trash2, Truck, Users, X,
+  Save, Shield, Sprout, Trash2, Truck, Users, X,
 } from 'lucide-react'
 import PlannerWorkspace from './PlannerWorkspace'
 import { useStore } from './store'
