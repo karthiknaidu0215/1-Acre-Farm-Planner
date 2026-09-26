@@ -87,6 +87,7 @@ export default function Sidebar({ onNavigateToLibrary }) {
       </button>
 
       {/* ACTIVE PLANT LIBRARY SELECTION SUMMARY */}
+      {/* SELECTED PLANTS CARRIED FROM PLANT LIBRARY */}
       <div style={{
         background: 'rgba(184, 220, 145, 0.08)',
         border: '1px solid rgba(184, 220, 145, 0.25)',
@@ -94,29 +95,29 @@ export default function Sidebar({ onNavigateToLibrary }) {
         padding: '10px 12px',
         marginBottom: '22px'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
           <span style={{ fontSize: '0.72rem', color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 'bold' }}>
-            Library Selection ({availablePlants.length})
+            Selected Plants ({availablePlants.length})
           </span>
           {onNavigateToLibrary && (
             <button 
               onClick={onNavigateToLibrary} 
               style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline', padding: 0 }}
             >
-              Edit Library
+              + Change Plants
             </button>
           )}
         </div>
         <div>
           {availablePlants.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
               {availablePlants.map(p => (
                 <span key={p.id} style={{
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(184,220,145,0.3)',
                   borderRadius: '4px',
-                  padding: '2px 7px',
-                  fontSize: '0.74rem',
+                  padding: '3px 8px',
+                  fontSize: '0.75rem',
                   color: '#fff',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -124,14 +125,14 @@ export default function Sidebar({ onNavigateToLibrary }) {
                 }}>
                   <strong>{p.shortName || p.name}</strong>
                   <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                    ({p.selectedSize || 'M'} · ₹{p.selectedPrice || p.price})
+                    — {p.selectedSize || 'M'}
                   </span>
                 </span>
               ))}
             </div>
           ) : (
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              No plants selected from library yet.
+              No plants selected yet. Please select plants from Plant Library.
             </div>
           )}
         </div>
@@ -156,9 +157,9 @@ export default function Sidebar({ onNavigateToLibrary }) {
               updateBorderZone({ type: val });
             }}
           >
-            {(libraryPlants && libraryPlants.length > 0 ? libraryPlants : []).map(plant => (
+            {(availablePlants.length > 0 ? availablePlants : (libraryPlants && libraryPlants.length > 0 ? libraryPlants : [])).map(plant => (
               <option key={plant.id} value={plant.shortName || plant.name}>
-                {plant.name}
+                {plant.name} — {plant.selectedSize || 'M'} Plant
               </option>
             ))}
           </select>
@@ -400,6 +401,27 @@ export default function Sidebar({ onNavigateToLibrary }) {
             Clear All Plants
           </button>
         </div>
+      </div>
+
+      <div className="control-group" style={{ background: 'rgba(184, 220, 145, 0.08)', border: '1px solid rgba(184, 220, 145, 0.35)', borderRadius: '8px', padding: '12px', marginTop: '16px' }}>
+        <div style={{ fontSize: '0.72rem', color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>
+          5. LIVE ESTIMATE & BILLING
+        </div>
+        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: '1.4' }}>
+          Review itemized plant billing, optional add-ons, and harvest income estimates.
+        </div>
+        <button 
+          className="btn"
+          style={{ width: '100%', background: 'var(--primary)', color: '#0c1514', fontWeight: 'bold', padding: '10px 14px', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
+          onClick={() => {
+            if (typeof window.__navigateToLiveEstimate === 'function') {
+              window.__navigateToLiveEstimate()
+            }
+          }}
+        >
+          <span>Live Estimate</span>
+          <span>→</span>
+        </button>
       </div>
     </div>
   )

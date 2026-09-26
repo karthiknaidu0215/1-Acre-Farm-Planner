@@ -925,4 +925,466 @@ canvas { display:block; }
   color: var(--primary);
 }
 
+/* ========================================================
+   LIVE ESTIMATE & BILLING UPGRADE STYLES
+   ======================================================== */
+.live-estimate-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-top: 24px;
+}
+
+.live-estimate-panel {
+  padding: 26px 30px;
+}
+
+.live-estimate-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+
+.live-estimate-panel-head h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-estimate-panel-head p {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+/* Plant Billing Table */
+.plant-billing-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.plant-billing-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.plant-billing-table th {
+  text-align: left;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.plant-billing-table th:nth-child(3),
+.plant-billing-table th:nth-child(4),
+.plant-billing-table th:nth-child(5) {
+  text-align: right;
+}
+
+.plant-billing-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.plant-billing-table tr:hover td {
+  background: rgba(184, 220, 145, 0.03);
+}
+
+.plant-col-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plant-col-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: #172619;
+  flex-shrink: 0;
+}
+
+.plant-col-name strong {
+  display: block;
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.plant-col-name small {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* Size Switcher Pills */
+.size-switcher-group {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+.size-pill-btn {
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.size-pill-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.size-pill-btn.active {
+  background: var(--primary);
+  color: var(--primary-ink);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Total Plant Cost Strip */
+.total-plant-cost-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(184, 220, 145, 0.08);
+  border: 1px solid rgba(184, 220, 145, 0.25);
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.total-plant-cost-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.total-plant-cost-value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Add-ons Grid */
+.addons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+@media (max-width: 768px) {
+  .addons-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.addon-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.addon-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(184, 220, 145, 0.35);
+}
+
+.addon-card.selected {
+  background: rgba(184, 220, 145, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.addon-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  background: rgba(0, 0, 0, 0.2);
+  transition: all 0.15s ease;
+}
+
+.addon-card.selected .addon-checkbox {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
+.addon-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.addon-header-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.addon-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.addon-price-tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.addon-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Final Investment Summary */
+.investment-summary-card {
+  padding: 26px 30px;
+  border: 1px solid rgba(184, 220, 145, 0.35);
+  background: linear-gradient(145deg, rgba(23, 43, 38, 0.92), rgba(15, 29, 27, 0.85));
+}
+
+.investment-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.investment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.investment-row.unselected {
+  opacity: 0.55;
+}
+
+.investment-row strong {
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.investment-divider {
+  height: 1px;
+  background: var(--line-strong);
+  margin: 6px 0;
+}
+
+.investment-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 10px;
+}
+
+.investment-total-label {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.investment-total-amount {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1;
+}
+
+/* Income Estimate Section */
+.income-section {
+  padding: 26px 30px;
+}
+
+.income-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.income-plant-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.income-plant-card:hover {
+  border-color: rgba(184, 220, 145, 0.4);
+  transform: translateY(-2px);
+}
+
+.income-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.income-card-head h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.income-card-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--primary);
+  background: rgba(184, 220, 145, 0.12);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.income-params-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  font-size: 11px;
+}
+
+.income-param-item span {
+  display: block;
+  color: var(--text-dim);
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.income-param-item strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.income-card-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.income-foot-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.income-foot-val {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Total Estimated Annual Income Banner */
+.income-annual-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 26px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.18), rgba(22, 43, 35, 0.95));
+  border: 1px solid rgba(131, 200, 163, 0.4);
+  margin-top: 22px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.income-banner-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.income-banner-value {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  color: #83c8a3;
+  line-height: 1;
+}
+
+.income-disclaimer-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.55;
+  margin-top: 14px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(215, 169, 108, 0.45);
+}
+
+
 

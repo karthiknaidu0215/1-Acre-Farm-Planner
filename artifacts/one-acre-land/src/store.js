@@ -123,6 +123,58 @@ export const useStore = create((set, get) => ({
     };
   }),
 
+  // Carries user selected plants & S/M/L sizes directly into Plan Maker zones
+  carrySelectedPlantsIntoPlanner: (libraryPlants, selectedPlantIds, selectedPlantSizes) => set((state) => {
+    const updatedLibrary = libraryPlants?.length ? libraryPlants : state.libraryPlants;
+    const updatedSelectedIds = Array.isArray(selectedPlantIds) ? selectedPlantIds : state.selectedPlantIds;
+    const updatedSelectedSizes = selectedPlantSizes || state.selectedPlantSizes || {};
+    
+    const selectedSet = new Set(updatedSelectedIds);
+    const available = updatedLibrary.filter(p => selectedSet.has(p.id));
+    
+    if (available.length === 0) {
+      return {
+        libraryPlants: updatedLibrary,
+        selectedPlantIds: updatedSelectedIds,
+        selectedPlantSizes: updatedSelectedSizes,
+      };
+    }
+    
+    // Choose border plant: prefer timber or avenue if selected, else first selected
+    const timberOrAvenue = available.find(p => p.category === 'Timber / Wood' || p.category === 'Avenue');
+    const borderPlant = timberOrAvenue || available[0];
+    const borderType = borderPlant.shortName || borderPlant.name;
+    
+    // Create cropZones representing the selected plants
+    const percPerCrop = Math.floor(100 / available.length);
+    const remainder = 100 - (percPerCrop * available.length);
+    
+    const newCropZones = available.map((plant, index) => {
+      const perc = index === 0 ? (percPerCrop + remainder) : percPerCrop;
+      return {
+        id: uuidv4(),
+        type: plant.shortName || plant.name,
+        percentage: perc,
+        p2p: plant.p2p || 15,
+        r2r: plant.r2r || 15,
+        targetPlants: plant.plantsPerAcre ? Math.round(plant.plantsPerAcre * (perc / 100)) : 0
+      };
+    });
+    
+    const { zones, interiorArea, borderArea } = calculateBlocks(state.landAcres, state.borderWidth, newCropZones);
+    
+    return {
+      libraryPlants: updatedLibrary,
+      selectedPlantIds: updatedSelectedIds,
+      selectedPlantSizes: updatedSelectedSizes,
+      borderZone: { ...state.borderZone, type: borderType },
+      cropZones: zones,
+      interiorAreaSqFt: interiorArea,
+      borderAreaSqFt: borderArea,
+      plants: [] // Reset plant placements to populate with new zones
+    };
+  }),
+
   // Returns ONLY plants selected by the user from the Plant Library
   getAvailablePlants: () => {
     const state = get();
@@ -139,9 +191,10 @@ export const useStore = create((set, get) => ({
         L: Math.round((plant.price || 100) * 1.48),
       };
       const sizeAvailability = plant.sizeAvailability || { S: true, M: true, L: true };
-      const isAvailable = sizeAvailability[selectedSize] !== false;
+      const rawAvail = sizeAvailability[selectedSize];
+      const isAvailable = rawAvail !== false && rawAvail !== 'Not Available' && rawAvail !== 'false';
       const selectedPrice = Number(sizePrices[selectedSize] || plant.price || 100);
-      const sizeImage = plant.sizeImages?.[selectedSize] || plant.image;
+      const sizeImage = plant.image || plant.sizeImages?.[selectedSize] || '';
       return {
         ...plant,
         selectedSize,
