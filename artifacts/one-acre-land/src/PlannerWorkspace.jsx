@@ -21,7 +21,7 @@ function WebGLFallback() {
   )
 }
 
-export default function PlannerWorkspace() {
+export default function PlannerWorkspace({ onNavigateToLibrary }) {
   const { draggingPlantId, draggingInfraId, activeDrawTool, manualPlacementZoneId, selectedInfraId, showStats } = useStore()
   const [webglAvailable] = useState(() => {
     try {
@@ -39,44 +39,64 @@ export default function PlannerWorkspace() {
 
   return (
     <div className="app-container">
-      {helperText && <div className="context-helper">{helperText}</div>}
-      <Sidebar />
-      <div
-        className="canvas-container"
-        style={{ marginRight: selectedInfraId ? '280px' : '0', transition: 'margin-right 0.2s ease' }}
-      >
-        {showStats && <Stats />}
-        {webglAvailable ? (
-          <Canvas shadows fallback={<WebGLFallback />}>
-            <PerspectiveCamera makeDefault position={[0, 600, 750]} fov={55} far={5000} />
-            <OrbitControls
-              makeDefault
-              maxPolarAngle={Math.PI / 2 - 0.05}
-              maxDistance={2500}
-              enabled={!draggingPlantId && !draggingInfraId}
-            />
-            <Sky sunPosition={[500, 400, 500]} turbidity={0.3} rayleigh={0.5} />
-            <Environment preset="city" />
-            <ambientLight intensity={0.5} />
-            <directionalLight
-              position={[500, 600, 300]}
-              intensity={1.5}
-              castShadow
-              shadow-mapSize={[4096, 4096]}
-              shadow-camera-left={-600}
-              shadow-camera-right={600}
-              shadow-camera-top={600}
-              shadow-camera-bottom={-600}
-            />
-            <ContactShadows resolution={1024} scale={1200} blur={2} opacity={0.4} far={40} color="#000000" />
-            <Ground />
-            <Infrastructure />
-            <PlantModels />
-          </Canvas>
-        ) : (
-          <WebGLFallback />
+      <Sidebar onNavigateToLibrary={onNavigateToLibrary} />
+      
+      <div className="canvas-container" style={{ position: 'relative' }}>
+        {helperText && (
+          <div className="helper-banner">
+            {helperText}
+          </div>
         )}
-        <ObjectPropertiesPanel />
+
+        {showStats && <Stats />}
+        {selectedInfraId && <ObjectPropertiesPanel />}
+
+        {!webglAvailable ? (
+          <WebGLFallback />
+        ) : (
+          <Canvas shadows>
+            <PerspectiveCamera makeDefault position={[0, 140, 180]} fov={45} />
+            <OrbitControls 
+              makeDefault
+              maxPolarAngle={Math.PI / 2 - 0.05} 
+              minDistance={10} 
+              maxDistance={600}
+              enabled={!draggingPlantId && !draggingInfraId && !activeDrawTool && !manualPlacementZoneId}
+            />
+            
+            <ambientLight intensity={0.7} />
+            <directionalLight 
+              position={[80, 120, 50]} 
+              intensity={1.8} 
+              castShadow 
+              shadow-mapSize-width={2048} 
+              shadow-mapSize-height={2048}
+              shadow-camera-far={600}
+              shadow-camera-left={-150}
+              shadow-camera-right={150}
+              shadow-camera-top={150}
+              shadow-camera-bottom={-150}
+              shadow-bias={-0.0005}
+            />
+            
+            <Sky sunPosition={[100, 40, 100]} turbidity={0.1} rayleigh={0.4} />
+            <Environment preset="park" />
+            
+            <Ground />
+            <PlantModels />
+            <Infrastructure />
+            
+            <ContactShadows 
+              position={[0, 0.05, 0]} 
+              opacity={0.5} 
+              scale={300} 
+              blur={1.5} 
+              far={10} 
+              resolution={1024} 
+              color="#000000" 
+            />
+          </Canvas>
+        )}
       </div>
     </div>
   )

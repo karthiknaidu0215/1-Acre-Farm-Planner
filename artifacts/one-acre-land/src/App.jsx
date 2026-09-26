@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowRight, Check, ChevronRight, CircleDollarSign, Download, FileText, Leaf, Library,
   LogOut, Map, MapPinned, Menu, Minus, Pencil, Plus, Receipt, Search, Settings2,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import PlannerWorkspace from './PlannerWorkspace'
 import { useStore } from './store'
-import { calculatePlan, money, useETRStore } from './etrState'
+import { calculatePlan, money, useETRStore, PLANT_SIZES, getPlantSizePrices, getPlantSizeImage, getPlantSizeDetails } from './etrState'
 import './index.css'
 
 const CATEGORIES = ['All', 'Fruit plants', 'Timber / Wood', 'Avenue', 'Flower', 'Landscaping']
@@ -41,14 +41,17 @@ function Intro({ onSkip }) {
   )
 }
 
-function Landing({ content, onNavigate }) {
+function Landing({ content, state, onToggleSelect, onNavigate }) {
+  const scrollToLibrary = () => {
+    document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+  }
   return (
     <main className="landing">
       <div className="landing-grid" />
       <nav className="landing-nav">
         <BrandMark />
         <div className="landing-nav-actions">
-          <button className="btn-quiet" onClick={() => onNavigate('catalog-public')}>Explore plants</button>
+          <button className="btn-quiet" onClick={scrollToLibrary}>Explore plants</button>
           <button className="btn-primary" onClick={() => onNavigate('user-auth')}>Start planning <ArrowRight size={14} /></button>
         </div>
       </nav>
@@ -58,8 +61,8 @@ function Landing({ content, onNavigate }) {
           <h1 className="landing-title">{content.heroTitle.split('. ')[0]}<span>{content.heroTitle.split('. ')[1] || 'Grow your future.'}</span></h1>
           <p className="landing-sub">{content.heroSubtitle} ETR NURSERY brings land size, location, plant spacing, investment, and estimated requirements into one clear plan.</p>
           <div className="landing-ctas">
-            <button className="btn-primary btn-large" onClick={() => onNavigate('user-auth')}>Plan my acre <ArrowRight size={16} /></button>
-            <button className="btn-outline btn-large" onClick={() => onNavigate('catalog-public')}>Browse the collection</button>
+            <button className="btn-primary btn-large" onClick={() => onNavigate('planner')}>Plan my acre <ArrowRight size={16} /></button>
+            <button className="btn-outline btn-large" onClick={scrollToLibrary}>Explore plant collection</button>
           </div>
           <div className="landing-proof">
             <span><strong>01</strong> choose</span><span><strong>02</strong> arrange</span><span><strong>03</strong> grow</span>
@@ -75,6 +78,18 @@ function Landing({ content, onNavigate }) {
           <div className="floating-stat floating-stat-bottom"><span>Planning signal</span><strong className="signal-dot">● <small>healthy</small></strong></div>
         </div>
       </section>
+
+      {/* PLANT LIBRARY SECTION DIRECTLY BELOW HERO */}
+      {state && (
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 32px 48px', position: 'relative', zIndex: 2 }}>
+          <PlantLibrarySection 
+            state={state} 
+            onToggleSelect={onToggleSelect} 
+            onNavigate={onNavigate} 
+          />
+        </div>
+      )}
+
       <div className="landing-foot"><span>Smart plantation planning for every acre</span><button className="admin-access" onClick={() => onNavigate('admin-auth')}><Shield size={12} /> Admin access</button></div>
     </main>
   )
@@ -169,7 +184,29 @@ function Shell({ admin, user, active, onNavigate, onLogout, children }) {
         <BrandMark />
         <div className="nav-label">{admin ? 'OPERATIONS' : 'YOUR WORKSPACE'}</div>
         <nav className="side-nav">
-          {links.map(([id, label, Icon]) => <button key={id} className={`side-link ${active === id ? 'active' : ''}`} onClick={() => { onNavigate(id); setOpen(false) }}><Icon size={16} />{label}</button>)}
+          {links.map(([id, label, Icon]) => (
+            <button 
+              key={id} 
+              className={`side-link ${active === id ? 'active' : ''}`} 
+              onClick={() => {
+                if (id === 'catalog') {
+                  if (active !== 'dashboard') {
+                    onNavigate('dashboard')
+                    setTimeout(() => {
+                      document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+                    }, 80)
+                  } else {
+                    document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+                  }
+                } else {
+                  onNavigate(id)
+                }
+                setOpen(false)
+              }}
+            >
+              <Icon size={16} />{label}
+            </button>
+          ))}
         </nav>
         <div className="sidebar-rail-note"><span className="rail-line" /><span>{admin ? 'ETR CONTROL ROOM' : 'FIELD NOTES / 01'}</span></div>
         <div className="sidebar-foot">
@@ -198,11 +235,29 @@ function labelFor(active) {
   return { dashboard: 'Overview', planner: '1-acre planner', catalog: 'Plant library', plan: 'Live estimate', bill: 'Bills & plans', admin: 'Command center', 'admin-plants': 'Plants', 'admin-pricing': 'Pricing & taxes', 'admin-content': 'Website content', 'admin-users': 'Users', 'admin-orders': 'Plans & bills' }[active] || 'Overview'
 }
 
+function getTimeBasedGreeting() {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) {
+    return 'Good Morning'
+  }
+  if (hour >= 12 && hour < 17) {
+    return 'Good Afternoon'
+  }
+  if (hour >= 17 && hour < 21) {
+    return 'Good Evening'
+  }
+  return 'Good Night'
+}
+
 function Dashboard({ user, state, onNavigate }) {
   const confirmed = state.plans.filter((plan) => plan.userId === user.id && plan.status !== 'draft')
   const draft = state.plans.find((plan) => plan.userId === user.id && plan.status === 'draft')
+  const greeting = getTimeBasedGreeting()
+  const scrollToLibrary = () => {
+    document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+  }
   return (
-    <PageWrap eyebrow="FIELD NOTES / OVERVIEW" title={<>Good morning, <em>{user.name.split(' ')[0]}.</em></>} intro="Your land plan, nursery shortlist, and latest estimate stay together here.">
+    <PageWrap eyebrow="FIELD NOTES / OVERVIEW" title={<>{greeting}, <em>{user.name.split(' ')[0]}.</em></>} intro="Your land plan, nursery shortlist, and latest estimate stay together here.">
       <div className="metric-grid">
         <Metric label="Land in focus" value="1 acre" note="A clear starting point" />
         <Metric label="Plants shortlisted" value={String(draft?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0)} note="Across your live plan" />
@@ -228,9 +283,16 @@ function Dashboard({ user, state, onNavigate }) {
       <div className="section-heading"><div><h2>Make the next move</h2><p>Everything you need for a considered first pass.</p></div></div>
       <div className="action-grid">
         <ActionCard icon={<Map size={18} />} eyebrow="01 / ARRANGE" title="Plan my acre" text="Use the living layout to test spacing and infrastructure." onClick={() => onNavigate('planner')} />
-        <ActionCard icon={<Library size={18} />} eyebrow="02 / CHOOSE" title="Explore plants" text="Build a shortlist from the nursery collection." onClick={() => onNavigate('catalog')} />
+        <ActionCard icon={<Library size={18} />} eyebrow="02 / CHOOSE" title="Explore plants" text="Build a shortlist from the nursery collection." onClick={scrollToLibrary} />
         <ActionCard icon={<CircleDollarSign size={18} />} eyebrow="03 / COMMIT" title="Review estimate" text="See current prices, tax, and services in one view." onClick={() => onNavigate('plan')} />
       </div>
+
+      {/* PLANT LIBRARY SECTION DIRECTLY BELOW */}
+      <PlantLibrarySection 
+        state={state} 
+        onToggleSelect={state.togglePlantSelection} 
+        onNavigate={onNavigate} 
+      />
     </PageWrap>
   )
 }
@@ -240,30 +302,338 @@ function Activity({ title, detail }) { return <div className="activity-row"><spa
 function ActionCard({ icon, eyebrow, title, text, onClick }) { return <button className="action-card glass-card" onClick={onClick}><div className="action-icon">{icon}</div><div className="card-kicker">{eyebrow}</div><h3>{title}</h3><p>{text}</p><ArrowRight size={15} /></button> }
 function PageWrap({ eyebrow, title, intro, children }) { return <main className="page-wrap"><div className="eyebrow">{eyebrow}</div><h1 className="display-title">{title}</h1><p className="page-intro">{intro}</p>{children}</main> }
 
-function CatalogPage({ state, onAdd, onNeedLogin, onBack, publicView = false }) {
+function PlantLibrarySection({ state, onToggleSelect, onNavigate, id = "plant-library-section" }) {
   const [category, setCategory] = useState('All')
   const [search, setSearch] = useState('')
   const [detail, setDetail] = useState(null)
-  const shown = state.plants.filter((plant) => (category === 'All' || plant.category === category) && `${plant.name} ${plant.category}`.toLowerCase().includes(search.toLowerCase()))
+  
+  const selectedPlantIds = state.selectedPlantIds || []
+  const selectedPlantSizes = state.selectedPlantSizes || {}
+  const selectedPlants = state.plants.filter((p) => selectedPlantIds.includes(p.id))
+  const shown = state.plants.filter((plant) => (category === 'All' || plant.category === category) && `${plant.name} ${plant.category} ${plant.shortName || ''}`.toLowerCase().includes(search.toLowerCase()))
+
+  const handleSelectSize = (plantId, size) => {
+    if (state.setPlantSelectedSize) {
+      state.setPlantSelectedSize(plantId, size)
+    }
+  }
+
+  const handleToggleSelect = (plantId, optionalSize) => {
+    if (onToggleSelect) {
+      onToggleSelect(plantId, optionalSize || selectedPlantSizes[plantId] || 'M')
+    }
+  }
+
   return (
-    <PageWrap eyebrow="THE COLLECTION / PLANT LIBRARY" title={<>Choose with <em>intention.</em></>} intro="Nursery stock with the spacing, maintenance, and growth context needed to make a confident acre plan.">
-      {publicView && <button className="back-link page-back" onClick={onBack}><ArrowRight size={14} className="back-arrow" /> Back to ETR</button>}
-      <div className="catalog-toolbar"><div className="search-box"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the collection" /></div><div className="filter-pills">{CATEGORIES.map((item) => <button key={item} className={`filter-pill ${category === item ? 'active' : ''}`} onClick={() => setCategory(item)}>{item}</button>)}</div></div>
+    <section id={id} className="plant-library-section" style={{ marginTop: '54px', paddingTop: '36px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="section-heading" style={{ marginBottom: '20px' }}>
+        <div>
+          <div className="eyebrow">THE COLLECTION / PLANT LIBRARY</div>
+          <h2>Choose with <em>intention.</em></h2>
+          <p>Select plants and their nursery sapling size (S, M, or L) to include in your Plan My Acre layout. Real photographs, recommended spacing, and sapling requirements help shape your farm.</p>
+        </div>
+      </div>
+
+      {/* PLAN MY ACRE CONNECTION BANNER */}
+      <div className="planner-connection-banner glass-card">
+        <div className="connection-info">
+          <div className="connection-tag">
+            <span className="live-dot" /> Plan My Acre Connection
+          </div>
+          <div className="connection-headline">
+            <strong>{selectedPlants.length} plant{selectedPlants.length !== 1 ? 's' : ''} available in Plan My Acre:</strong>{' '}
+            <span className="selected-names-list">
+              {selectedPlants.length > 0 
+                ? selectedPlants.map(p => `${p.shortName || p.name} (${selectedPlantSizes[p.id] || 'M'})`).join(', ')
+                : 'None selected yet. Select plants below to make them available in Plan My Acre.'}
+            </span>
+          </div>
+        </div>
+        <button 
+          className="btn-primary connection-btn" 
+          onClick={() => onNavigate('planner')}
+        >
+          Open Plan My Acre <ArrowRight size={15} />
+        </button>
+      </div>
+
+      <div className="catalog-toolbar">
+        <div className="search-box">
+          <Search size={15} />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search plant collection..." />
+        </div>
+        <div className="filter-pills">
+          {CATEGORIES.map((item) => (
+            <button key={item} className={`filter-pill ${category === item ? 'active' : ''}`} onClick={() => setCategory(item)}>
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="catalog-grid">
-        {shown.map((plant) => <PlantCard key={plant.id} plant={plant} onAdd={() => state.currentUser ? onAdd(plant.id) : onNeedLogin()} onDetail={() => setDetail(plant)} />)}
+        {shown.map((plant) => (
+          <PlantCard 
+            key={plant.id} 
+            plant={plant} 
+            isSelected={selectedPlantIds.includes(plant.id)}
+            selectedSize={selectedPlantSizes[plant.id] || 'M'}
+            onSelectSize={handleSelectSize}
+            onToggleSelect={handleToggleSelect}
+            onDetail={() => setDetail(plant)} 
+          />
+        ))}
       </div>
       {!shown.length && <div className="empty-state glass-card"><Sprout size={24} /><h3>No plants in this view</h3><p>Try another search or category.</p></div>}
-      {detail && <PlantDetail plant={detail} onClose={() => setDetail(null)} onAdd={() => { onAdd(detail.id); setDetail(null) }} canAdd={Boolean(state.currentUser)} onNeedLogin={onNeedLogin} />}
+      {detail && (
+        <PlantDetail 
+          plant={detail} 
+          isSelected={selectedPlantIds.includes(detail.id)}
+          selectedSize={selectedPlantSizes[detail.id] || 'M'}
+          onSelectSize={handleSelectSize}
+          onClose={() => setDetail(null)} 
+          onToggleSelect={handleToggleSelect} 
+        />
+      )}
+    </section>
+  )
+}
+
+function CatalogPage({ state, onToggleSelect, onNavigate, onNeedLogin, onBack, publicView = false }) {
+  return (
+    <PageWrap eyebrow="THE COLLECTION / PLANT LIBRARY" title={<>Choose with <em>intention.</em></>} intro="Select plants to include in your Plan My Acre layout. Real photographs, recommended spacing, and sapling requirements help shape your farm.">
+      {publicView && <button className="back-link page-back" onClick={onBack}><ArrowRight size={14} className="back-arrow" /> Back to ETR</button>}
+      <PlantLibrarySection state={state} onToggleSelect={onToggleSelect} onNavigate={onNavigate} />
     </PageWrap>
   )
 }
 
-function PlantCard({ plant, onAdd, onDetail }) {
-  return <article className="plant-card glass-card"><div className="plant-visual" style={{ '--plant-color': plant.color }}><div className="plant-glyph"><Sprout size={54} strokeWidth={1} /></div><div className="plant-category">{plant.category}</div><div className="plant-orb" /></div><div className="plant-card-body"><h3>{plant.name}</h3><p>{plant.description}</p><div className="plant-meta"><div className="meta-stat">SPACING<strong>{plant.spacing}</strong></div><div className="meta-stat">PER ACRE<strong>{plant.plantsPerAcre} plants</strong></div></div><div className="plant-actions"><span className="plant-price">{money(plant.price)} <small>/ sapling</small></span><div><button className="icon-text-button" onClick={onDetail}>Details</button><button className="btn-primary btn-small" onClick={onAdd}>Add to plan <Plus size={13} /></button></div></div></div></article>
+function PlantCard({ plant, isSelected, selectedSize = 'M', onSelectSize, onToggleSelect, onDetail }) {
+  const [activeSize, setActiveSize] = useState(selectedSize)
+
+  useEffect(() => {
+    if (selectedSize && selectedSize !== activeSize) {
+      setActiveSize(selectedSize)
+    }
+  }, [selectedSize])
+
+  const prices = getPlantSizePrices(plant)
+  const activeImage = getPlantSizeImage(plant, activeSize)
+  const activeDetails = getPlantSizeDetails(plant, activeSize)
+  const unitPrice = prices[activeSize] || plant.price
+
+  const handleSizeClick = (sizeCode) => {
+    setActiveSize(sizeCode)
+    if (onSelectSize) {
+      onSelectSize(plant.id, sizeCode)
+    }
+  }
+
+  const handleSelectClick = () => {
+    if (onToggleSelect) {
+      onToggleSelect(plant.id, activeSize)
+    }
+  }
+
+  return (
+    <article className={`plant-card glass-card ${isSelected ? 'is-selected-card' : ''}`}>
+      <div className="plant-visual" style={{ '--plant-color': plant.color }}>
+        <img 
+          src={activeImage} 
+          alt={`${plant.name} - ${activeDetails.name}`} 
+          className="plant-photo-img" 
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        <div className="plant-photo-overlay" />
+        <div className="plant-category">{plant.category}</div>
+        <div style={{ position: 'absolute', bottom: '12px', left: '12px', zIndex: 2, background: 'rgba(10,22,20,0.85)', padding: '3px 8px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--primary)' }}>
+          {activeSize} — {activeDetails.label} ({activeDetails.height})
+        </div>
+        {isSelected && (
+          <div className="plant-selected-badge">
+            <Check size={11} strokeWidth={2.5} /> In Plan My Acre ({activeSize})
+          </div>
+        )}
+      </div>
+      <div className="plant-card-body">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
+          <h3 style={{ margin: 0 }}>{plant.name}</h3>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>
+            {money(unitPrice)}
+          </span>
+        </div>
+        <p>{plant.description}</p>
+        <div className="plant-meta">
+          <div className="meta-stat">SPACING<strong>{plant.spacing}</strong></div>
+          <div className="meta-stat">PER ACRE<strong>{plant.plantsPerAcre} plants</strong></div>
+        </div>
+
+        {/* PLANT SELECTION SIZE: S, M, L */}
+        <div className="plant-selection-size-block">
+          <div className="selection-size-header">
+            <span className="size-label-kicker">Plant Selection Size:</span>
+            <span className="current-size-preview">
+              <strong>{activeSize}</strong> — {activeDetails.label} Plant
+            </span>
+          </div>
+          <div className="plant-size-selector">
+            {PLANT_SIZES.map((sz) => {
+              const price = prices[sz.code]
+              const isActive = activeSize === sz.code
+              return (
+                <button
+                  key={sz.code}
+                  type="button"
+                  className={`size-choice-btn ${isActive ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleSizeClick(sz.code)
+                  }}
+                  title={`${sz.code} — ${sz.label} Plant (${sz.height}) — ${money(price)}`}
+                >
+                  <span className="size-code-badge">{sz.code} — {sz.label}</span>
+                  <div className="size-info">
+                    <strong className="size-price">{money(price)}</strong>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          <div className="size-detail-note">
+            <span className="size-note-badge">{activeDetails.height}</span>
+            <span className="size-note-text">{activeDetails.details}</span>
+          </div>
+        </div>
+
+        <div className="plant-actions">
+          <span className="plant-price">{money(unitPrice)} <small>/ {activeSize} plant</small></span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button className="icon-text-button" onClick={() => onDetail({ ...plant, initialSize: activeSize })}>Details</button>
+            <button 
+              className={isSelected ? 'btn-primary btn-small is-selected-btn' : 'btn-outline btn-small'}
+              onClick={handleSelectClick}
+              title={isSelected ? `Deselect ${plant.name} from Plan My Acre` : `Select ${activeSize} for Plan My Acre`}
+            >
+              {isSelected ? (
+                <>Selected ({activeSize}) <Check size={12} /></>
+              ) : (
+                <>+ Select {activeSize}</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
 }
 
-function PlantDetail({ plant, onClose, onAdd, canAdd, onNeedLogin }) {
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><div className="detail-modal glass-card"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="detail-visual" style={{ '--plant-color': plant.color }}><Sprout size={74} strokeWidth={1} /></div><div className="eyebrow">{plant.category} / NURSERY NOTE</div><h2>{plant.name}</h2><p>{plant.description}</p><div className="detail-facts"><Fact label="Unit price" value={money(plant.price)} /><Fact label="Recommended spacing" value={plant.spacing} /><Fact label="Fertilizer" value={plant.fertilizer} /><Fact label="Growth signal" value={plant.growth} /><Fact label="Maintenance" value={plant.maintenance} /><Fact label="Plants / acre" value={String(plant.plantsPerAcre)} /></div><button className="btn-primary btn-block" onClick={() => canAdd ? onAdd() : onNeedLogin()}>{canAdd ? 'Add to my plan' : 'Sign in to add'} <ArrowRight size={15} /></button></div></div>
+function PlantDetail({ plant, isSelected, selectedSize = 'M', onSelectSize, onClose, onToggleSelect }) {
+  const [activeSize, setActiveSize] = useState(plant.initialSize || selectedSize || 'M')
+  const prices = getPlantSizePrices(plant)
+  const activeImage = getPlantSizeImage(plant, activeSize)
+  const activeDetails = getPlantSizeDetails(plant, activeSize)
+  const unitPrice = prices[activeSize] || plant.price
+
+  const handleSizeClick = (sizeCode) => {
+    setActiveSize(sizeCode)
+    if (onSelectSize) {
+      onSelectSize(plant.id, sizeCode)
+    }
+  }
+
+  const handleSelectClick = () => {
+    if (onToggleSelect) {
+      onToggleSelect(plant.id, activeSize)
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="detail-modal glass-card">
+        <button className="modal-close" onClick={onClose}><X size={16} /></button>
+        <div className="detail-visual-wrap">
+          <img 
+            src={activeImage} 
+            alt={`${plant.name} - ${activeDetails.name}`} 
+            className="detail-photo-img" 
+            referrerPolicy="no-referrer" 
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <div className="detail-photo-overlay" />
+          <div className="detail-category-tag">{plant.category}</div>
+          <div style={{ position: 'absolute', bottom: '14px', left: '14px', zIndex: 2, background: 'rgba(10,22,20,0.85)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--primary)' }}>
+            Plant Size: {activeSize} — {activeDetails.label} ({activeDetails.height})
+          </div>
+          {isSelected && (
+            <div className="detail-selected-badge">
+              <Check size={12} strokeWidth={2.5} /> In Plan My Acre ({activeSize})
+            </div>
+          )}
+        </div>
+        <div className="detail-body-pad">
+          <div className="eyebrow">{plant.category} / NURSERY RECORD</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <h2>{plant.name}</h2>
+            <strong style={{ fontFamily: 'var(--font-display)', fontSize: '24px', color: 'var(--primary)' }}>
+              {money(unitPrice)} <small style={{ fontSize: '12px', color: 'var(--text-muted)' }}>/ {activeSize} plant</small>
+            </strong>
+          </div>
+          <p>{plant.description}</p>
+
+          {/* PLANT SELECTION SIZE: S, M, L */}
+          <div className="detail-size-breakdown">
+            <div className="detail-size-heading">Plant Selection Size:</div>
+            <div className="detail-size-options">
+              {PLANT_SIZES.map((sz) => {
+                const price = prices[sz.code]
+                const isActive = activeSize === sz.code
+                return (
+                  <div
+                    key={sz.code}
+                    className={`detail-size-row ${isActive ? 'active' : ''}`}
+                    onClick={() => handleSizeClick(sz.code)}
+                  >
+                    <div className="detail-size-info">
+                      <div className="detail-size-title">
+                        <strong>{sz.code} — {sz.label} Plant</strong> · <span style={{ color: 'var(--primary)' }}>{sz.height}</span>
+                      </div>
+                      <div className="detail-size-desc">{sz.stage} · {sz.details}</div>
+                    </div>
+                    <div className="detail-size-cost">
+                      {money(price)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="detail-facts">
+            <Fact label={`Unit price (${activeSize})`} value={money(unitPrice)} />
+            <Fact label="Recommended spacing" value={plant.spacing} />
+            <Fact label="Fertilizer" value={plant.fertilizer} />
+            <Fact label="Growth signal" value={plant.growth} />
+            <Fact label="Maintenance" value={plant.maintenance} />
+            <Fact label="Plants / acre" value={`${plant.plantsPerAcre} plants`} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
+            <button 
+              className={isSelected ? 'btn-primary btn-block is-selected-btn' : 'btn-primary btn-block'} 
+              onClick={handleSelectClick}
+            >
+              {isSelected ? (
+                <>Selected ({activeSize} — {activeDetails.label}) for Plan My Acre <Check size={15} /></>
+              ) : (
+                <>+ Select {activeSize} ({activeDetails.label} — {money(unitPrice)}) for Plan My Acre <ArrowRight size={15} /></>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 function Fact({ label, value }) { return <div><span>{label}</span><strong>{value}</strong></div> }
 
@@ -273,7 +643,30 @@ function PlanPage({ state, draft, onUpdateItems, onNavigate, onConfirm }) {
   const updateQty = (plantId, delta) => onUpdateItems(items.map((item) => item.plantId === plantId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item).filter((item) => item.quantity > 0), draft?.landAcres || 1)
   return <PageWrap eyebrow="LIVE ESTIMATE / 01 ACRE" title={<>Your plan, in <em>numbers.</em></>} intro="Every quantity change recalculates nursery stock, services, fertilizer, transport, and GST immediately.">
     <div className="plan-toolbar"><button className="btn-outline" onClick={() => onNavigate('catalog')}><Plus size={14} /> Add plants</button><button className="btn-quiet" onClick={() => onNavigate('planner')}><Map size={14} /> Open field planner</button></div>
-    {!items.length ? <div className="empty-state glass-card"><CircleDollarSign size={27} /><h3>Your estimate is waiting</h3><p>Choose a few plants from the library, then return here to see the live total.</p><button className="btn-primary" onClick={() => onNavigate('catalog')}>Explore plants <ArrowRight size={14} /></button></div> : <div className="summary-layout"><div className="glass-card summary-list"><div className="summary-list-head"><span>SELECTED PLANTS</span><span>QTY / TOTAL</span></div>{items.map((item) => { const plant = state.plants.find((entry) => entry.id === item.plantId); if (!plant) return null; return <div className="summary-row" key={item.plantId}><div className="summary-plant"><strong>{plant.name}</strong><small>{plant.spacing} · {money(plant.price)} per sapling · approx. {areaFor(plant, item.quantity)} sq ft</small></div><div className="qty-control"><button onClick={() => updateQty(plant.id, -1)}><Minus size={12} /></button><span>{item.quantity}</span><button onClick={() => updateQty(plant.id, 1)}><Plus size={12} /></button></div><div className="line-price">{money(plant.price * item.quantity)}</div><button className="remove-icon" onClick={() => onUpdateItems(items.filter((entry) => entry.plantId !== plant.id), draft?.landAcres || 1)}><Trash2 size={14} /></button></div> })}<div className="area-readout"><MapPinned size={15} /><div><span>Planning area</span><strong>1 acre · {items.reduce((sum, item) => sum + item.quantity, 0)} saplings shortlisted</strong></div><button className="text-link" onClick={() => onNavigate('planner')}>Arrange visually</button></div></div><QuoteCard quote={quote} settings={state.settings} onConfirm={onConfirm} /></div>}
+    {!items.length ? <div className="empty-state glass-card"><CircleDollarSign size={27} /><h3>Your estimate is waiting</h3><p>Choose a few plants from the library, then return here to see the live total.</p><button className="btn-primary" onClick={() => onNavigate('catalog')}>Explore plants <ArrowRight size={14} /></button></div> : <div className="summary-layout"><div className="glass-card summary-list"><div className="summary-list-head"><span>SELECTED PLANTS</span><span>QTY / TOTAL</span></div>{items.map((item) => { 
+      const plant = state.plants.find((entry) => entry.id === item.plantId); 
+      if (!plant) return null; 
+      const size = item.size || state.selectedPlantSizes?.[plant.id] || 'M';
+      const sizePrices = getPlantSizePrices(plant);
+      const unitPrice = item.price || sizePrices[size] || plant.price;
+      const sizeDetails = getPlantSizeDetails(plant, size);
+      return <div className="summary-row" key={item.plantId}>
+        <div className="summary-plant">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <strong>{plant.name}</strong>
+            <span className="plant-size-tag-mini">{size} — {sizeDetails.label}</span>
+          </div>
+          <small>{plant.spacing} · {sizeDetails.height} · {money(unitPrice)} per sapling · approx. {areaFor(plant, item.quantity)} sq ft</small>
+        </div>
+        <div className="qty-control">
+          <button onClick={() => updateQty(plant.id, -1)}><Minus size={12} /></button>
+          <span>{item.quantity}</span>
+          <button onClick={() => updateQty(plant.id, 1)}><Plus size={12} /></button>
+        </div>
+        <div className="line-price">{money(unitPrice * item.quantity)}</div>
+        <button className="remove-icon" onClick={() => onUpdateItems(items.filter((entry) => entry.plantId !== plant.id), draft?.landAcres || 1)}><Trash2 size={14} /></button>
+      </div> 
+    })}<div className="area-readout"><MapPinned size={15} /><div><span>Planning area</span><strong>1 acre · {items.reduce((sum, item) => sum + item.quantity, 0)} saplings shortlisted</strong></div><button className="text-link" onClick={() => onNavigate('planner')}>Arrange visually</button></div></div><QuoteCard quote={quote} settings={state.settings} onConfirm={onConfirm} /></div>}
   </PageWrap>
 }
 
@@ -283,9 +676,39 @@ function areaFor(plant, quantity) {
   return Math.round(side * side * quantity).toLocaleString('en-IN')
 }
 
-function PlannerPage({ onBack }) {
-  useEffect(() => { useStore.getState().setLandAcres(1) }, [])
-  return <main className="planner-page-wrap"><div className="planner-page-bar"><div><div className="eyebrow">FIELD LAB / INTERACTIVE</div><h1>1-acre plantation planner</h1></div><button className="btn-quiet" onClick={onBack}><ArrowRight size={14} className="back-arrow" /> Back to workspace</button></div><div className="planner-page"><PlannerWorkspace /></div></main>
+function PlannerPage({ onBack, onNavigate, store }) {
+  useEffect(() => { 
+    const plannerState = useStore.getState();
+    if (typeof plannerState.setLandAcres === 'function' && !plannerState.landAcres) {
+      plannerState.setLandAcres(1);
+    }
+    if (store && typeof plannerState.syncWithLibrary === 'function') {
+      plannerState.syncWithLibrary(store.plants, store.selectedPlantIds, store.selectedPlantSizes);
+    }
+    window.__navigateToPlantLibrary = () => onNavigate('catalog');
+    return () => { window.__navigateToPlantLibrary = null; };
+  }, [onNavigate, store?.plants, store?.selectedPlantIds, store?.selectedPlantSizes])
+  return (
+    <main className="planner-page-wrap">
+      <div className="planner-page-bar">
+        <div>
+          <div className="eyebrow">FIELD LAB / INTERACTIVE</div>
+          <h1>1-acre plantation planner</h1>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn-outline" onClick={() => onNavigate('catalog')}>
+            <Library size={14} /> Plant library
+          </button>
+          <button className="btn-quiet" onClick={onBack}>
+            <ArrowRight size={14} className="back-arrow" /> Back to workspace
+          </button>
+        </div>
+      </div>
+      <div className="planner-page">
+        <PlannerWorkspace onNavigateToLibrary={() => onNavigate('catalog')} />
+      </div>
+    </main>
+  )
 }
 
 function BillPage({ state, draft, onConfirm, onNavigate }) {
@@ -296,22 +719,332 @@ function BillPage({ state, draft, onConfirm, onNavigate }) {
   const billId = latest?.id || 'ETR-DRAFT'
   const printBill = () => window.print()
   return <PageWrap eyebrow="BILLING / CONFIRMATION" title={<>Your plantation <em>plan.</em></>} intro="A clear final check before this acre moves from screen to soil.">
-    {!plan?.items?.length ? <div className="empty-state glass-card"><Receipt size={26} /><h3>No bill yet</h3><p>Build a plant shortlist and confirm the estimate to generate your first bill.</p><button className="btn-primary" onClick={() => onNavigate('catalog')}>Choose plants <ArrowRight size={14} /></button></div> : <><div className="bill-paper"><div className="bill-head"><div><div className="bill-brand"><Leaf size={17} /> ETR NURSERY</div><small>PLANTATION INTELLIGENCE</small></div><div className="bill-meta">BILL {billId}<br />{new Date().toLocaleDateString('en-IN')}<br />STATUS: {latest?.status || 'DRAFT'}</div></div><h1>Plantation plan</h1><p className="bill-intro">Prepared for {state.currentUser?.name} · {state.currentUser?.phone} · Land size: {plan.landAcres || 1} acre</p><table className="bill-table"><thead><tr><th>Plant</th><th>Spacing</th><th>Qty</th><th>Amount</th></tr></thead><tbody>{plan.items.map((item) => { const plant = state.plants.find((entry) => entry.id === item.plantId); return plant ? <tr key={plant.id}><td>{plant.name}</td><td>{plant.spacing}</td><td>{item.quantity}</td><td>{money(plant.price * item.quantity)}</td></tr> : null })}</tbody></table><div className="bill-total-wrap"><div className="bill-totals"><div className="bill-total-line"><span>Plant cost</span><strong>{money(quote.subtotal)}</strong></div><div className="bill-total-line"><span>Services & provisions</span><strong>{money(quote.services + quote.fertilizer + quote.transportation + quote.otherCharges)}</strong></div><div className="bill-total-line"><span>GST ({state.settings.gstPercent}%)</span><strong>{money(quote.tax)}</strong></div><div className="bill-total-line grand"><span>Grand total</span><strong>{money(quote.total)}</strong></div></div></div><div className="bill-footer"><span>ETR NURSERY · GROW WITH CLARITY</span><span>{state.content.contact}</span></div></div><div className="bill-actions">{!latest && <button className="btn-primary" onClick={onConfirm}>Confirm & generate bill <Check size={14} /></button>}{latest && <button className="btn-primary" onClick={printBill}><Download size={14} /> Print / save as PDF</button>}<button className="btn-quiet" onClick={() => onNavigate('plan')}>Edit estimate</button></div></>}
+    {!plan?.items?.length ? <div className="empty-state glass-card"><Receipt size={26} /><h3>No bill yet</h3><p>Build a plant shortlist and confirm the estimate to generate your first bill.</p><button className="btn-primary" onClick={() => onNavigate('catalog')}>Choose plants <ArrowRight size={14} /></button></div> : <><div className="bill-paper"><div className="bill-head"><div><div className="bill-brand"><Leaf size={17} /> ETR NURSERY</div><small>PLANTATION INTELLIGENCE</small></div><div className="bill-meta">BILL {billId}<br />{new Date().toLocaleDateString('en-IN')}<br />STATUS: {latest?.status || 'DRAFT'}</div></div><h1>Plantation plan</h1><p className="bill-intro">Prepared for {state.currentUser?.name} · {state.currentUser?.phone} · Land size: {plan.landAcres || 1} acre</p><table className="bill-table"><thead><tr><th>Plant & Size</th><th>Spacing</th><th>Unit Price</th><th>Qty</th><th>Amount</th></tr></thead><tbody>{plan.items.map((item) => { 
+      const plant = state.plants.find((entry) => entry.id === item.plantId); 
+      if (!plant) return null;
+      const size = item.size || state.selectedPlantSizes?.[plant.id] || 'M';
+      const sizePrices = getPlantSizePrices(plant);
+      const unitPrice = item.price || sizePrices[size] || plant.price;
+      const sizeDetails = getPlantSizeDetails(plant, size);
+      return <tr key={plant.id}>
+        <td>
+          <strong>{plant.name}</strong>
+          <div style={{ fontSize: '10px', color: '#67766b' }}>
+            Size: {size} — {sizeDetails.name} ({sizeDetails.height})
+          </div>
+        </td>
+        <td>{plant.spacing}</td>
+        <td>{money(unitPrice)}</td>
+        <td>{item.quantity}</td>
+        <td>{money(unitPrice * item.quantity)}</td>
+      </tr> 
+    })}</tbody></table><div className="bill-total-wrap"><div className="bill-totals"><div className="bill-total-line"><span>Plant cost</span><strong>{money(quote.subtotal)}</strong></div><div className="bill-total-line"><span>Services & provisions</span><strong>{money(quote.services + quote.fertilizer + quote.transportation + quote.otherCharges)}</strong></div><div className="bill-total-line"><span>GST ({state.settings.gstPercent}%)</span><strong>{money(quote.tax)}</strong></div><div className="bill-total-line grand"><span>Grand total</span><strong>{money(quote.total)}</strong></div></div></div><div className="bill-footer"><span>ETR NURSERY · GROW WITH CLARITY</span><span>{state.content.contact}</span></div></div><div className="bill-actions">{!latest && <button className="btn-primary" onClick={onConfirm}>Confirm & generate bill <Check size={14} /></button>}{latest && <button className="btn-primary" onClick={printBill}><Download size={14} /> Print / save as PDF</button>}<button className="btn-quiet" onClick={() => onNavigate('plan')}>Edit estimate</button></div></>}
   </PageWrap>
 }
 
 function AdminPage({ state, activeTab, setActiveTab, onUpdatePlant, onAddPlant, onRemovePlant, onUpdateSettings, onUpdateContent, onUpdateStatus }) {
-  const [newPlant, setNewPlant] = useState({ name: '', category: 'Fruit plants', price: 100, spacing: '12 × 12 ft', plantsPerAcre: 300, fertilizer: '6 kg / year', maintenance: 'Moderate', growth: '3–4 years', description: 'A considered nursery selection for plantation plans.', color: '#98bf77' })
+  const [newPlant, setNewPlant] = useState({ 
+    name: '', 
+    category: 'Fruit plants', 
+    price: 100, 
+    priceS: 70, 
+    priceM: 100, 
+    priceL: 150, 
+    spacing: '12 × 12 ft', 
+    plantsPerAcre: 300, 
+    fertilizer: '6 kg / year', 
+    maintenance: 'Moderate', 
+    growth: '3–4 years', 
+    description: 'A considered nursery selection for plantation plans.', 
+    color: '#98bf77' 
+  })
   const [editingPlant, setEditingPlant] = useState(null)
   const [settings, setSettings] = useState(state.settings)
   const [content, setContent] = useState(state.content)
+  const [plantPricingBatch, setPlantPricingBatch] = useState(() => {
+    const batch = {}
+    state.plants.forEach((p) => {
+      const sp = getPlantSizePrices(p)
+      batch[p.id] = { S: sp.S, M: sp.M, L: sp.L }
+    })
+    return batch
+  })
+  const [pricingSavedNotice, setPricingSavedNotice] = useState(false)
   const tab = activeTab.replace('admin-', '')
   const title = tab === 'admin' ? 'Command center' : tab === 'plants' ? 'Plants & categories' : tab === 'pricing' ? 'Pricing & taxes' : tab === 'content' ? 'Website content' : tab === 'users' ? 'Users' : 'Plans & bills'
   return <PageWrap eyebrow="ETR NURSERY / ADMINISTRATION" title={<>{title.split(' ')[0]} <em>{title.split(' ').slice(1).join(' ')}</em></>} intro="A private operating layer for keeping the customer experience accurate and current.">
     <div className="admin-tabs">{[['admin', 'Overview'], ['admin-plants', 'Plants'], ['admin-pricing', 'Pricing & taxes'], ['admin-content', 'Website content'], ['admin-users', 'Users'], ['admin-orders', 'Plans & bills']].map(([id, label]) => <button key={id} className={`admin-tab ${activeTab === id ? 'active' : ''}`} onClick={() => setActiveTab(id)}>{label}</button>)}</div>
     {tab === 'admin' && <AdminOverview state={state} setActiveTab={setActiveTab} />}
-    {tab === 'plants' && <div className="admin-grid"><section className="glass-card admin-panel"><h3>Plant catalog</h3><div className="admin-list">{state.plants.map((plant) => <div key={plant.id}><div className="admin-list-row admin-plant-row"><div><strong>{plant.name}</strong><span>{plant.category} · {money(plant.price)} · {plant.spacing}</span></div><div className="row-actions"><button className="icon-button" title="Edit plant" onClick={() => setEditingPlant({ ...plant })}><Pencil size={14} /></button><button className="icon-button danger-icon" onClick={() => onRemovePlant(plant.id)}><Trash2 size={14} /></button></div></div>{editingPlant?.id === plant.id && <div className="admin-inline-editor"><div className="admin-form-grid"><AdminField label="Name" value={editingPlant.name} onChange={(value) => setEditingPlant({ ...editingPlant, name: value })} /><AdminField label="Category" value={editingPlant.category} onChange={(value) => setEditingPlant({ ...editingPlant, category: value })} /><AdminField label="Price (₹)" value={editingPlant.price} type="number" onChange={(value) => setEditingPlant({ ...editingPlant, price: value })} /><AdminField label="Spacing" value={editingPlant.spacing} onChange={(value) => setEditingPlant({ ...editingPlant, spacing: value })} /><AdminField label="Plants per acre" value={editingPlant.plantsPerAcre} type="number" onChange={(value) => setEditingPlant({ ...editingPlant, plantsPerAcre: value })} /><AdminField label="Growth" value={editingPlant.growth} onChange={(value) => setEditingPlant({ ...editingPlant, growth: value })} /><AdminField label="Fertilizer" value={editingPlant.fertilizer} onChange={(value) => setEditingPlant({ ...editingPlant, fertilizer: value })} /><AdminField label="Maintenance" value={editingPlant.maintenance} onChange={(value) => setEditingPlant({ ...editingPlant, maintenance: value })} /><AdminField label="Description" value={editingPlant.description} full textarea onChange={(value) => setEditingPlant({ ...editingPlant, description: value })} /></div><div className="admin-actions"><button className="btn-quiet" onClick={() => setEditingPlant(null)}>Cancel</button><button className="btn-primary" onClick={() => { onUpdatePlant(plant.id, editingPlant); setEditingPlant(null) }}><Save size={14} /> Save plant</button></div></div>}</div>)}</div></section><section className="glass-card admin-panel"><h3>Add a plant</h3><div className="admin-form-grid"><AdminField label="Name" value={newPlant.name} onChange={(value) => setNewPlant({ ...newPlant, name: value })} /><AdminField label="Category" value={newPlant.category} onChange={(value) => setNewPlant({ ...newPlant, category: value })} /><AdminField label="Price (₹)" value={newPlant.price} type="number" onChange={(value) => setNewPlant({ ...newPlant, price: value })} /><AdminField label="Spacing" value={newPlant.spacing} onChange={(value) => setNewPlant({ ...newPlant, spacing: value })} /><AdminField label="Plants per acre" value={newPlant.plantsPerAcre} type="number" onChange={(value) => setNewPlant({ ...newPlant, plantsPerAcre: value })} /><AdminField label="Growth" value={newPlant.growth} onChange={(value) => setNewPlant({ ...newPlant, growth: value })} /><AdminField label="Description" value={newPlant.description} full onChange={(value) => setNewPlant({ ...newPlant, description: value })} /></div><div className="admin-actions"><button className="btn-primary" onClick={() => { if (newPlant.name.trim()) { onAddPlant(newPlant); setNewPlant({ ...newPlant, name: '' }) } }}>Add to catalog <Plus size={14} /></button></div></section></div>}
-    {tab === 'pricing' && <section className="glass-card admin-panel narrow-panel"><div className="section-intro"><h3>Commercial settings</h3><p>These values flow into every live estimate immediately.</p></div><div className="admin-form-grid"><AdminField label="GST / tax %" value={settings.gstPercent} type="number" onChange={(value) => setSettings({ ...settings, gstPercent: value })} /><AdminField label="Plantation services (₹)" value={settings.serviceCharge} type="number" onChange={(value) => setSettings({ ...settings, serviceCharge: value })} /><AdminField label="Transportation (₹)" value={settings.transportation} type="number" onChange={(value) => setSettings({ ...settings, transportation: value })} /><AdminField label="Other charges (₹)" value={settings.otherCharges} type="number" onChange={(value) => setSettings({ ...settings, otherCharges: value })} /><AdminField label="Discount (₹)" value={settings.discount} type="number" onChange={(value) => setSettings({ ...settings, discount: value })} /></div><div className="admin-actions"><button className="btn-primary" onClick={() => onUpdateSettings(settings)}><Check size={14} /> Save pricing rules</button></div></section>}
+    {tab === 'plants' && <div className="admin-grid"><section className="glass-card admin-panel"><h3>Plant catalog</h3><div className="admin-list">{state.plants.map((plant) => {
+      const sizePrices = getPlantSizePrices(plant)
+      return (
+        <div key={plant.id}>
+          <div className="admin-list-row admin-plant-row">
+            <div>
+              <strong>{plant.name}</strong>
+              <span>{plant.category} · {plant.spacing} · S: {money(sizePrices.S)} · M: {money(sizePrices.M)} · L: {money(sizePrices.L)}</span>
+            </div>
+            <div className="row-actions">
+              <button className="icon-button" title="Edit plant & size prices" onClick={() => setEditingPlant({ 
+                ...plant, 
+                priceS: sizePrices.S, 
+                priceM: sizePrices.M, 
+                priceL: sizePrices.L,
+                sizePrices: { ...sizePrices }
+              })}><Pencil size={14} /></button>
+              <button className="icon-button danger-icon" onClick={() => onRemovePlant(plant.id)}><Trash2 size={14} /></button>
+            </div>
+          </div>
+          {editingPlant?.id === plant.id && (
+            <div className="admin-inline-editor">
+              <div className="admin-form-grid">
+                <AdminField label="Name" value={editingPlant.name} onChange={(value) => setEditingPlant({ ...editingPlant, name: value })} />
+                <AdminField label="Category" value={editingPlant.category} onChange={(value) => setEditingPlant({ ...editingPlant, category: value })} />
+                <AdminField label="Spacing" value={editingPlant.spacing} onChange={(value) => setEditingPlant({ ...editingPlant, spacing: value })} />
+                <AdminField label="Plants per acre" value={editingPlant.plantsPerAcre} type="number" onChange={(value) => setEditingPlant({ ...editingPlant, plantsPerAcre: value })} />
+                <AdminField label="Growth" value={editingPlant.growth} onChange={(value) => setEditingPlant({ ...editingPlant, growth: value })} />
+                <AdminField label="Fertilizer" value={editingPlant.fertilizer} onChange={(value) => setEditingPlant({ ...editingPlant, fertilizer: value })} />
+                <AdminField label="Maintenance" value={editingPlant.maintenance} onChange={(value) => setEditingPlant({ ...editingPlant, maintenance: value })} />
+                
+                <div className="full" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', marginTop: '6px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Plant Selection Size Pricing (S, M, L)
+                  </div>
+                </div>
+                <AdminField 
+                  label="S — Small Plant Price (₹)" 
+                  value={editingPlant.priceS} 
+                  type="number" 
+                  onChange={(value) => setEditingPlant({ ...editingPlant, priceS: value })} 
+                />
+                <AdminField 
+                  label="M — Medium Plant Price (₹)" 
+                  value={editingPlant.priceM} 
+                  type="number" 
+                  onChange={(value) => setEditingPlant({ ...editingPlant, priceM: value, price: value })} 
+                />
+                <AdminField 
+                  label="L — Large Plant Price (₹)" 
+                  value={editingPlant.priceL} 
+                  type="number" 
+                  onChange={(value) => setEditingPlant({ ...editingPlant, priceL: value })} 
+                />
+
+                <AdminField label="Description" value={editingPlant.description} full textarea onChange={(value) => setEditingPlant({ ...editingPlant, description: value })} />
+              </div>
+              <div className="admin-actions">
+                <button className="btn-quiet" onClick={() => setEditingPlant(null)}>Cancel</button>
+                <button className="btn-primary" onClick={() => { 
+                  const sVal = Number(editingPlant.priceS || editingPlant.sizePrices?.S || 1)
+                  const mVal = Number(editingPlant.priceM || editingPlant.price || editingPlant.sizePrices?.M || 1)
+                  const lVal = Number(editingPlant.priceL || editingPlant.sizePrices?.L || 1)
+                  onUpdatePlant(plant.id, {
+                    ...editingPlant,
+                    price: mVal,
+                    sizePrices: { S: sVal, M: mVal, L: lVal }
+                  })
+                  setEditingPlant(null) 
+                }}>
+                  <Save size={14} /> Save plant
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    })}</div></section><section className="glass-card admin-panel"><h3>Add a plant</h3><div className="admin-form-grid"><AdminField label="Name" value={newPlant.name} onChange={(value) => setNewPlant({ ...newPlant, name: value })} /><AdminField label="Category" value={newPlant.category} onChange={(value) => setNewPlant({ ...newPlant, category: value })} /><AdminField label="Spacing" value={newPlant.spacing} onChange={(value) => setNewPlant({ ...newPlant, spacing: value })} /><AdminField label="Plants per acre" value={newPlant.plantsPerAcre} type="number" onChange={(value) => setNewPlant({ ...newPlant, plantsPerAcre: value })} /><AdminField label="Growth" value={newPlant.growth} onChange={(value) => setNewPlant({ ...newPlant, growth: value })} />
+      <div className="full" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', marginTop: '6px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>
+          Plant Selection Size Pricing (S, M, L)
+        </div>
+      </div>
+      <AdminField label="S — Small Plant Price (₹)" value={newPlant.priceS} type="number" onChange={(value) => setNewPlant({ ...newPlant, priceS: value })} />
+      <AdminField label="M — Medium Plant Price (₹)" value={newPlant.priceM} type="number" onChange={(value) => setNewPlant({ ...newPlant, priceM: value, price: value })} />
+      <AdminField label="L — Large Plant Price (₹)" value={newPlant.priceL} type="number" onChange={(value) => setNewPlant({ ...newPlant, priceL: value })} />
+      <AdminField label="Description" value={newPlant.description} full onChange={(value) => setNewPlant({ ...newPlant, description: value })} />
+    </div><div className="admin-actions"><button className="btn-primary" onClick={() => { 
+      if (newPlant.name.trim()) { 
+        const sVal = Number(newPlant.priceS || Math.round(Number(newPlant.price || 100) * 0.68))
+        const mVal = Number(newPlant.priceM || newPlant.price || 100)
+        const lVal = Number(newPlant.priceL || Math.round(Number(newPlant.price || 100) * 1.48))
+        onAddPlant({
+          ...newPlant,
+          price: mVal,
+          sizePrices: { S: sVal, M: mVal, L: lVal }
+        })
+        setNewPlant({ ...newPlant, name: '' }) 
+      } 
+    }}>Add to catalog <Plus size={14} /></button></div></section></div>}
+    {tab === 'pricing' && <>
+      <section className="glass-card admin-panel narrow-panel">
+        <div className="section-intro">
+          <h3>Commercial settings</h3>
+          <p>These values flow into every live estimate immediately.</p>
+        </div>
+        <div className="admin-form-grid">
+          <AdminField label="GST / tax %" value={settings.gstPercent} type="number" onChange={(value) => setSettings({ ...settings, gstPercent: value })} />
+          <AdminField label="Plantation services (₹)" value={settings.serviceCharge} type="number" onChange={(value) => setSettings({ ...settings, serviceCharge: value })} />
+          <AdminField label="Transportation (₹)" value={settings.transportation} type="number" onChange={(value) => setSettings({ ...settings, transportation: value })} />
+          <AdminField label="Other charges (₹)" value={settings.otherCharges} type="number" onChange={(value) => setSettings({ ...settings, otherCharges: value })} />
+          <AdminField label="Discount (₹)" value={settings.discount} type="number" onChange={(value) => setSettings({ ...settings, discount: value })} />
+        </div>
+        <div className="admin-actions">
+          <button className="btn-primary" onClick={() => onUpdateSettings(settings)}><Check size={14} /> Save pricing rules</button>
+        </div>
+      </section>
+
+      {/* PLANT SELECTION SIZE (S, M, L) PRICING MANAGER */}
+      <section className="glass-card admin-panel narrow-panel" style={{ marginTop: '20px' }}>
+        <div className="section-intro">
+          <div className="eyebrow">PLANT LIBRARY PRICING</div>
+          <h3>Plant Selection Size Pricing (S, M, L)</h3>
+          <p>Update physical nursery plant size prices for every plant in the collection. S = Small Plant, M = Medium Plant, L = Large Plant.</p>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Plant</th>
+                <th>S — Small Plant (₹)</th>
+                <th>M — Medium Plant (₹)</th>
+                <th>L — Large Plant (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.plants.map((plant) => {
+                const currentSizes = plantPricingBatch[plant.id] || getPlantSizePrices(plant)
+                return (
+                  <tr key={plant.id}>
+                    <td>
+                      <strong>{plant.name}</strong>
+                      <small style={{ display: 'block', color: 'var(--text-dim)', fontSize: '9px' }}>{plant.category} · {plant.spacing}</small>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        style={{ width: '90px', padding: '6px 8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)', borderRadius: '4px', color: '#fff', fontSize: '11px' }}
+                        value={currentSizes.S}
+                        onChange={(e) => {
+                          const val = Number(e.target.value)
+                          setPlantPricingBatch(prev => ({
+                            ...prev,
+                            [plant.id]: { ...(prev[plant.id] || getPlantSizePrices(plant)), S: val }
+                          }))
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        style={{ width: '90px', padding: '6px 8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)', borderRadius: '4px', color: '#fff', fontSize: '11px' }}
+                        value={currentSizes.M}
+                        onChange={(e) => {
+                          const val = Number(e.target.value)
+                          setPlantPricingBatch(prev => ({
+                            ...prev,
+                            [plant.id]: { ...(prev[plant.id] || getPlantSizePrices(plant)), M: val }
+                          }))
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        style={{ width: '90px', padding: '6px 8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)', borderRadius: '4px', color: '#fff', fontSize: '11px' }}
+                        value={currentSizes.L}
+                        onChange={(e) => {
+                          const val = Number(e.target.value)
+                          setPlantPricingBatch(prev => ({
+                            ...prev,
+                            [plant.id]: { ...(prev[plant.id] || getPlantSizePrices(plant)), L: val }
+                          }))
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {pricingSavedNotice && <div className="notice" style={{ marginTop: '12px' }}>Plant Selection Size prices updated and saved successfully!</div>}
+        <div className="admin-actions">
+          <button 
+            className="btn-primary" 
+            onClick={() => {
+              state.plants.forEach((plant) => {
+                const pricesObj = plantPricingBatch[plant.id]
+                if (pricesObj) {
+                  onUpdatePlant(plant.id, {
+                    sizePrices: {
+                      S: Number(pricesObj.S),
+                      M: Number(pricesObj.M),
+                      L: Number(pricesObj.L)
+                    },
+                    price: Number(pricesObj.M)
+                  })
+                }
+              })
+              setPricingSavedNotice(true)
+              setTimeout(() => setPricingSavedNotice(false), 3000)
+            }}
+          >
+            <Save size={14} /> Save all plant size prices
+          </button>
+        </div>
+      </section>
+
+      <section className="glass-card admin-panel narrow-panel" style={{ marginTop: '20px' }}>
+        <div className="section-intro">
+          <div className="eyebrow">LAND PACKAGES</div>
+          <h3>Land Collection pricing (S, M, L)</h3>
+          <p>Update base planning and allocation prices for Small (S), Medium (M), and Large (L) parcels.</p>
+        </div>
+        <div className="admin-form-grid">
+          <AdminField 
+            label="Small Plot (S — 0.5 Acre) Price (₹)" 
+            value={settings.landPricing?.S?.price ?? defaultLandPricing.S.price} 
+            type="number" 
+            onChange={(value) => setSettings({
+              ...settings,
+              landPricing: {
+                ...settings.landPricing,
+                S: { ...(settings.landPricing?.S || defaultLandPricing.S), price: Number(value) }
+              }
+            })} 
+          />
+          <AdminField 
+            label="Standard Acre (M — 1.0 Acre) Price (₹)" 
+            value={settings.landPricing?.M?.price ?? defaultLandPricing.M.price} 
+            type="number" 
+            onChange={(value) => setSettings({
+              ...settings,
+              landPricing: {
+                ...settings.landPricing,
+                M: { ...(settings.landPricing?.M || defaultLandPricing.M), price: Number(value) }
+              }
+            })} 
+          />
+          <AdminField 
+            label="Estate Acreage (L — 2.5 Acres) Price (₹)" 
+            value={settings.landPricing?.L?.price ?? defaultLandPricing.L.price} 
+            type="number" 
+            onChange={(value) => setSettings({
+              ...settings,
+              landPricing: {
+                ...settings.landPricing,
+                L: { ...(settings.landPricing?.L || defaultLandPricing.L), price: Number(value) }
+              }
+            })} 
+          />
+        </div>
+        <div className="admin-actions">
+          <button className="btn-primary" onClick={() => onUpdateSettings(settings)}>
+            <Save size={14} /> Save land pricing
+          </button>
+        </div>
+      </section>
+    </>}
     {tab === 'content' && <section className="glass-card admin-panel narrow-panel"><div className="section-intro"><h3>Website language</h3><p>Keep the public ETR story aligned with the business.</p></div><div className="admin-form-grid"><AdminField label="Hero title" value={content.heroTitle} full onChange={(value) => setContent({ ...content, heroTitle: value })} /><AdminField label="Hero subtitle" value={content.heroSubtitle} full onChange={(value) => setContent({ ...content, heroSubtitle: value })} /><AdminField label="Nursery description" value={content.description} full textarea onChange={(value) => setContent({ ...content, description: value })} /><AdminField label="Services" value={content.services} full textarea onChange={(value) => setContent({ ...content, services: value })} /><AdminField label="Contact information" value={content.contact} full onChange={(value) => setContent({ ...content, contact: value })} /></div><div className="admin-actions"><button className="btn-primary" onClick={() => onUpdateContent(content)}><Check size={14} /> Save website content</button></div></section>}
     {tab === 'users' && <section className="glass-card admin-panel"><h3>Registered users</h3><DataTable headers={['Name', 'Phone', 'Registered', 'Plans']} rows={state.users.map((user) => [<strong>{user.name}</strong>, user.phone, new Date(user.registeredAt).toLocaleDateString('en-IN'), state.plans.filter((plan) => plan.userId === user.id && plan.status !== 'draft').length])} empty="No user workspaces yet." /></section>}
     {tab === 'orders' && <section className="glass-card admin-panel"><h3>Plans & bills</h3><DataTable headers={['Bill', 'Customer', 'Amount', 'Status', 'Update']} rows={state.bills.map((bill) => { const user = state.users.find((entry) => entry.id === bill.userId); return [bill.id, user?.name || 'Guest', money(bill.amount), <span className={`status-tag ${bill.status === 'review' ? 'pending' : ''}`}>{bill.status}</span>, <select className="status-select" value={bill.status} onChange={(event) => onUpdateStatus(bill.id, event.target.value)}><option value="review">Review</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option></select>] })} empty="Confirmed bills will appear here." /></section>}
@@ -328,16 +1061,51 @@ function DataTable({ headers, rows, empty }) { return rows.length ? <div classNa
 
 export default function App() {
   const store = useETRStore()
-  const [view, setView] = useState(store.currentUser ? 'dashboard' : store.introSeen ? 'landing' : 'intro')
+  const [view, setView] = useState(store.currentUser ? 'dashboard' : 'landing')
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminTab, setAdminTab] = useState('admin')
 
   useEffect(() => { if (store.currentUser && view === 'landing') setView('dashboard') }, [store.currentUser, view])
   const draft = store.draftPlan
   const navigate = (next) => {
-    if (next === 'user-auth' || next === 'admin-auth' || next === 'catalog-public') setView(next)
-    else if (next === 'admin' || next.startsWith('admin-')) { setIsAdmin(true); setAdminTab(next); setView('admin') }
-    else setView(next)
+    if (next === 'lands') {
+      if (store.currentUser) {
+        setView('dashboard')
+        setTimeout(() => {
+          document.getElementById('land-collection-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 80)
+      } else {
+        setView('landing')
+        setTimeout(() => {
+          document.getElementById('land-collection-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 80)
+      }
+    } else if (next === 'catalog') {
+      if (store.currentUser) {
+        setView('dashboard')
+        setTimeout(() => {
+          document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 80)
+      } else {
+        setView('landing')
+        setTimeout(() => {
+          document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 80)
+      }
+    } else if (next === 'catalog-public') {
+      setView('landing')
+      setTimeout(() => {
+        document.getElementById('plant-library-section')?.scrollIntoView({ behavior: 'smooth' })
+      }, 80)
+    } else if (next === 'user-auth' || next === 'admin-auth') {
+      setView(next)
+    } else if (next === 'admin' || next.startsWith('admin-')) {
+      setIsAdmin(true)
+      setAdminTab(next)
+      setView('admin')
+    } else {
+      setView(next)
+    }
   }
   const userLogin = (name, phone) => { store.loginUser(name, phone); setView('dashboard') }
   const adminLogin = (username, password) => { const valid = store.adminLogin(username, password); if (valid) { setIsAdmin(true); setAdminTab('admin'); setView('admin') } return valid }
@@ -345,19 +1113,19 @@ export default function App() {
   const confirmPlan = () => { const quote = calculatePlan(draft, store.plants, store.settings); store.savePlan({ ...quote, items: draft.items, landAcres: 1 }); setView('bill') }
 
   if (view === 'intro') return <Intro onSkip={() => { store.patch({ introSeen: true }); setView('landing') }} />
-  if (view === 'landing') return <Landing content={store.content} onNavigate={navigate} />
+  if (view === 'landing') return <Landing content={store.content} state={store} onToggleSelect={store.togglePlantSelection} onNavigate={navigate} />
   if (view === 'user-auth') return <AuthPage mode="user" onBack={() => setView('landing')} onUserLogin={userLogin} onAdminLogin={adminLogin} />
   if (view === 'admin-auth') return <AuthPage mode="admin" onBack={(next) => next ? setView(next) : setView('landing')} onUserLogin={userLogin} onAdminLogin={adminLogin} />
-  if (view === 'catalog-public') return <><LandingPublicBar onBack={() => setView('landing')} onLogin={() => setView('user-auth')} /><CatalogPage state={store} onAdd={store.addToPlan} onNeedLogin={() => setView('user-auth')} onBack={() => setView('landing')} publicView /></>
+  if (view === 'catalog-public') return <Landing content={store.content} state={store} onToggleSelect={store.togglePlantSelection} onNavigate={navigate} />
   if (isAdmin && view === 'admin') return <Shell admin active={adminTab} onNavigate={(next) => { setAdminTab(next); setView('admin') }} onLogout={logout}>{<AdminPage state={store} activeTab={adminTab} setActiveTab={setAdminTab} onUpdatePlant={store.updatePlant} onAddPlant={store.addPlant} onRemovePlant={store.removePlant} onUpdateSettings={store.updateSettings} onUpdateContent={store.updateContent} onUpdateStatus={(id, status) => store.patch((current) => ({ bills: current.bills.map((bill) => bill.id === id ? { ...bill, status } : bill), plans: current.plans.map((plan) => { const bill = current.bills.find((entry) => entry.id === id); return bill && plan.id === bill.planId ? { ...plan, status } : plan }) }))} />}</Shell>
-  if (!store.currentUser) return <AuthPage mode="user" onBack={() => setView('landing')} onUserLogin={userLogin} onAdminLogin={adminLogin} />
+  const effectiveUser = store.currentUser || { id: 'usr-karthik', name: 'Karthik Naidu', phone: '+91 98490 21212', registeredAt: '2026-01-01' }
+  if (!store.currentUser && view !== 'planner') return <AuthPage mode="user" onBack={() => setView('landing')} onUserLogin={userLogin} onAdminLogin={adminLogin} />
   let page = null
-  if (view === 'dashboard') page = <Dashboard user={store.currentUser} state={store} onNavigate={navigate} />
-  if (view === 'planner') page = <PlannerPage onBack={() => setView('dashboard')} />
-  if (view === 'catalog') page = <CatalogPage state={store} onAdd={store.addToPlan} onNeedLogin={() => setView('user-auth')} onBack={() => setView('dashboard')} />
+  if (view === 'dashboard' || view === 'catalog') page = <Dashboard user={effectiveUser} state={store} onNavigate={navigate} />
+  if (view === 'planner') page = <PlannerPage store={store} onBack={() => setView(store.currentUser ? 'dashboard' : 'landing')} onNavigate={navigate} />
   if (view === 'plan') page = <PlanPage state={store} draft={draft} onUpdateItems={store.updatePlanItems} onNavigate={navigate} onConfirm={confirmPlan} />
   if (view === 'bill') page = <BillPage state={store} draft={draft} onConfirm={confirmPlan} onNavigate={navigate} />
-  return <Shell user={store.currentUser} active={view} onNavigate={navigate} onLogout={logout}>{page}</Shell>
+  return <Shell user={effectiveUser} active={view === 'catalog' ? 'dashboard' : view} onNavigate={navigate} onLogout={logout}>{page}</Shell>
 }
 
 function LandingPublicBar({ onBack, onLogin }) { return <div className="public-bar"><button className="back-link" onClick={onBack}><ArrowRight size={14} className="back-arrow" /> Back to ETR</button><BrandMark /><button className="btn-primary" onClick={onLogin}>Sign in <ArrowRight size={14} /></button></div> }

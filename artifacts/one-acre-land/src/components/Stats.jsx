@@ -4,12 +4,23 @@ import { useStore, isPointInRotatedRect, getInfraArea } from '../store'
 // Professional unique color per crop type
 export const CROP_COLORS = {
   'Mango':    '#e67e22',
+  'Kesar Mango': '#e67e22',
   'Banana':   '#f1c40f',
+  'Grand Naine Banana': '#f1c40f',
   'Arecanut': '#27ae60',
+  'Arecanut Premium': '#27ae60',
   'Coconut':  '#16a085',
+  'Tall Coconut': '#16a085',
   'Guava':    '#8e44ad',
+  'Allahabad Guava': '#8e44ad',
   'Mosambi':  '#2980b9',
+  'Sweet Mosambi': '#2980b9',
   'Timber':   '#7f8c8d',
+  'Teak':     '#7f8c8d',
+  'Teak Sapling': '#7f8c8d',
+  'Moringa':  '#78b582',
+  'Jasmine':  '#d7c7a1',
+  'Star Jasmine': '#d7c7a1',
   'Border':   '#d35400',
   'default':  '#1abc9c',
 }

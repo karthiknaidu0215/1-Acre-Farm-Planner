@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useStore, isPointInRotatedRect } from '../store'
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigateToLibrary }) {
   const { 
     landAcres, 
     borderWidth, setBorderWidth,
@@ -11,9 +11,14 @@ export default function Sidebar() {
     measuring, setMeasuring, clearAllPlants, plants,
     activeDrawTool, setActiveDrawTool,
     addInfrastructure, infrastructure, addFullRoad,
-    showStats, toggleStats
+    showStats, toggleStats,
+    getAvailablePlants, libraryPlants
   } = useStore()
-  
+
+  const availablePlants = useMemo(() => {
+    return typeof getAvailablePlants === 'function' ? getAvailablePlants() : []
+  }, [getAvailablePlants, cropZones, borderZone, plants])
+
   const visiblePlants = useMemo(() => {
     return plants.filter(p => {
       let isRemoved = false;
@@ -38,6 +43,12 @@ export default function Sidebar() {
 
   const [infraMenuOpen, setInfraMenuOpen] = useState(true);
 
+  // Single source of truth lookup for border plant
+  const borderPlantInfo = useMemo(() => {
+    const list = libraryPlants && libraryPlants.length > 0 ? libraryPlants : [];
+    return list.find(p => (p.shortName || p.name) === borderZone.type || p.name === borderZone.type || p.id === borderZone.type);
+  }, [libraryPlants, borderZone.type]);
+
   return (
     <div className="sidebar">
       <h2 className="sidebar-title">Farm Land Planner</h2>
@@ -54,7 +65,7 @@ export default function Sidebar() {
           borderRadius: '8px',
           fontWeight: 'bold',
           fontSize: '1rem',
-          marginBottom: '25px',
+          marginBottom: '20px',
           cursor: 'pointer',
           display: 'flex',
           justifyContent: 'space-between',
@@ -74,6 +85,57 @@ export default function Sidebar() {
           {showStats ? 'ON' : 'OFF'}
         </span>
       </button>
+
+      {/* ACTIVE PLANT LIBRARY SELECTION SUMMARY */}
+      <div style={{
+        background: 'rgba(184, 220, 145, 0.08)',
+        border: '1px solid rgba(184, 220, 145, 0.25)',
+        borderRadius: '8px',
+        padding: '10px 12px',
+        marginBottom: '22px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 'bold' }}>
+            Library Selection ({availablePlants.length})
+          </span>
+          {onNavigateToLibrary && (
+            <button 
+              onClick={onNavigateToLibrary} 
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline', padding: 0 }}
+            >
+              Edit Library
+            </button>
+          )}
+        </div>
+        <div>
+          {availablePlants.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+              {availablePlants.map(p => (
+                <span key={p.id} style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(184,220,145,0.3)',
+                  borderRadius: '4px',
+                  padding: '2px 7px',
+                  fontSize: '0.74rem',
+                  color: '#fff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <strong>{p.shortName || p.name}</strong>
+                  <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                    ({p.selectedSize || 'M'} · ₹{p.selectedPrice || p.price})
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              No plants selected from library yet.
+            </div>
+          )}
+        </div>
+      </div>
       
       <div className="control-group">
         <h3>1. LAND</h3>
@@ -87,11 +149,52 @@ export default function Sidebar() {
         </div>
         <div className="input-row" style={{ marginTop: '10px' }}>
           <label>Border Plant Type</label>
-          <select value={borderZone.type} onChange={e => updateBorderZone({ type: e.target.value })}>
-            <option>Coconut</option><option>Arecanut</option><option>Timber</option>
-            <option>Mango</option><option>Guava</option><option>Mosambi</option><option>Banana</option>
+          <select 
+            value={borderZone.type} 
+            onChange={e => {
+              const val = e.target.value;
+              updateBorderZone({ type: val });
+            }}
+          >
+            {(libraryPlants && libraryPlants.length > 0 ? libraryPlants : []).map(plant => (
+              <option key={plant.id} value={plant.shortName || plant.name}>
+                {plant.name}
+              </option>
+            ))}
           </select>
         </div>
+
+        {/* Real Plant Photo & Info Badge for Border Plant */}
+        {borderPlantInfo && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(0,0,0,0.3)',
+            padding: '7px 9px',
+            borderRadius: '6px',
+            marginTop: '8px',
+            border: '1px solid var(--border)'
+          }}>
+            <img 
+              src={borderPlantInfo.image} 
+              alt={borderPlantInfo.name} 
+              referrerPolicy="no-referrer"
+              style={{ width: '38px', height: '38px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} 
+            />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {borderPlantInfo.name}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                {borderPlantInfo.price ? `₹${borderPlantInfo.price} / sapling` : 'Border Boundary'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                Spacing: {borderPlantInfo.spacing} · {borderPlantInfo.plantsPerAcre} / acre
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px', marginTop: '10px', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -115,12 +218,26 @@ export default function Sidebar() {
       </div>
       
       <div className="control-group">
-        <h3>2. CROPS ({totalPercentage}%)</h3>
+        <h3>2. PLANTS ({totalPercentage}%)</h3>
         {totalPercentage > 100 && (
           <div style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '10px' }}>Error: Allocation &gt; 100%</div>
         )}
         {totalPercentage < 100 && (
           <div style={{ color: 'var(--warning)', fontSize: '0.85rem', marginBottom: '10px' }}>Warning: {100 - totalPercentage}% unallocated</div>
+        )}
+
+        {availablePlants.length === 0 && (
+          <div style={{ background: 'rgba(232, 141, 127, 0.1)', border: '1px solid rgba(232, 141, 127, 0.3)', padding: '10px', borderRadius: '6px', marginBottom: '12px', fontSize: '0.82rem', color: 'var(--danger)' }}>
+            No plants selected from Plant Library yet.
+            {onNavigateToLibrary && (
+              <button 
+                onClick={onNavigateToLibrary}
+                style={{ display: 'block', marginTop: '6px', background: 'var(--primary)', color: 'black', border: 'none', borderRadius: '4px', padding: '4px 10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.78rem' }}
+              >
+                Go to Plant Library →
+              </button>
+            )}
+          </div>
         )}
 
         {cropZones.map((zone) => {
@@ -129,15 +246,68 @@ export default function Sidebar() {
           const capacity = maxRows * plantsPerRow
           const placedCount = visiblePlants.filter(p => p.zoneId === zone.id).length
           
+          // Lookup single source of truth plant details from availablePlants (selected in library)
+          const zonePlantInfo = availablePlants.find(p => (p.shortName || p.name) === zone.type || p.name === zone.type) || (libraryPlants || []).find(p => (p.shortName || p.name) === zone.type || p.name === zone.type);
+
           return (
             <div key={zone.id} style={{ background: 'var(--bg)', padding: '10px', borderRadius: '6px', marginBottom: '10px', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <select value={zone.type} onChange={e => updateCropZone(zone.id, { type: e.target.value })} style={{ flex: 1, marginRight: '10px', fontWeight: 'bold' }}>
-                  <option>Mango</option><option>Guava</option><option>Mosambi</option>
-                  <option>Banana</option><option>Arecanut</option><option>Coconut</option>
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Plant</label>
+                  <button onClick={() => removeCropZone(zone.id)} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.75rem', width: 'auto' }}>Remove</button>
+                </div>
+                <select 
+                  value={zone.type} 
+                  onChange={e => {
+                    const newType = e.target.value;
+                    const plantObj = availablePlants.find(p => (p.shortName || p.name) === newType || p.name === newType);
+                    updateCropZone(zone.id, { 
+                      type: newType,
+                      p2p: plantObj?.p2p || zone.p2p,
+                      r2r: plantObj?.r2r || zone.r2r,
+                    });
+                  }} 
+                  style={{ width: '100%', fontWeight: 'bold' }}
+                >
+                  {availablePlants.map(plant => (
+                    <option key={plant.id} value={plant.shortName || plant.name}>
+                      {plant.name} · {plant.selectedSize || 'M'} Plant (₹{plant.selectedPrice || plant.price})
+                    </option>
+                  ))}
                 </select>
-                <button onClick={() => removeCropZone(zone.id)} className="btn btn-secondary" style={{ padding: '4px 8px', width: 'auto' }}>X</button>
               </div>
+
+              {/* Plant Photo & Metadata row */}
+              {zonePlantInfo && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(0,0,0,0.25)',
+                  padding: '6px 8px',
+                  borderRadius: '5px',
+                  marginBottom: '10px',
+                  border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <img 
+                    src={zonePlantInfo.image} 
+                    alt={zonePlantInfo.name} 
+                    referrerPolicy="no-referrer"
+                    style={{ width: '36px', height: '36px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} 
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {zonePlantInfo.name}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                      {zonePlantInfo.selectedSize || 'M'} Plant · ₹{zonePlantInfo.selectedPrice || zonePlantInfo.price} / sapling
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      Spacing: {zonePlantInfo.spacing} · {zonePlantInfo.plantsPerAcre} / acre
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="input-row">
                 <label>Allocation (%)</label>
@@ -146,11 +316,11 @@ export default function Sidebar() {
               
               <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
                 <div className="input-row" style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start', margin: 0 }}>
-                  <label style={{fontSize: '0.8rem'}}>Plant Space</label>
+                  <label style={{fontSize: '0.8rem'}}>Plant Space (ft)</label>
                   <input type="number" value={zone.p2p} onChange={e => updateCropZone(zone.id, { p2p: Number(e.target.value) })} min="1" style={{width: '100%', boxSizing: 'border-box'}} />
                 </div>
                 <div className="input-row" style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start', margin: 0 }}>
-                  <label style={{fontSize: '0.8rem'}}>Row Space</label>
+                  <label style={{fontSize: '0.8rem'}}>Row Space (ft)</label>
                   <input type="number" value={zone.r2r} onChange={e => updateCropZone(zone.id, { r2r: Number(e.target.value) })} min="1" style={{width: '100%', boxSizing: 'border-box'}} />
                 </div>
               </div>
@@ -171,7 +341,11 @@ export default function Sidebar() {
           )
         })}
         
-        <button className="btn btn-secondary" onClick={() => addCropZone('Mango')} disabled={totalPercentage >= 100}>
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => addCropZone()} 
+          disabled={totalPercentage >= 100 || availablePlants.length === 0}
+        >
           + Add Crop Zone
         </button>
       </div>

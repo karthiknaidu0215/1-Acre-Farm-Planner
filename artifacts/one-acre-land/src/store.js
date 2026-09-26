@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import { defaultPlants, initialSelectedPlantIds } from './plantsData';
 
 const ACRE_SQ_FT = 43560;
 
@@ -36,11 +37,9 @@ const calculateBlocks = (acres, borderWidth, cropZones) => {
 
 // Math helpers
 export const isPointInRotatedRect = (px, pz, cx, cz, w, l, angle) => {
-  // Translate point to origin
   const tx = px - cx;
   const tz = pz - cz;
   
-  // Rotate point backwards
   const cos = Math.cos(-angle);
   const sin = Math.sin(-angle);
   
@@ -53,14 +52,13 @@ export const isPointInRotatedRect = (px, pz, cx, cz, w, l, angle) => {
 export const getInfraArea = (infra) => {
   if (infra.type === 'Borewell' || infra.type === 'Water Tank') return Math.PI * Math.pow(infra.radius, 2);
   if (infra.type === 'Road') return infra.width * infra.length;
-  // Rectangular objects
   return infra.width * infra.length;
 }
 
-const initialCalculations = calculateBlocks(25, 10, []);
+const initialCalculations = calculateBlocks(1, 10, []);
 
 export const useStore = create((set, get) => ({
-  landAcres: 25, 
+  landAcres: 1, 
   borderWidth: 10,
   landSideFt: initialCalculations.landSide,
   interiorSideFt: initialCalculations.interiorSide,
@@ -70,10 +68,102 @@ export const useStore = create((set, get) => ({
   showStats: true,
   toggleStats: () => set((state) => ({ showStats: !state.showStats })),
   
+  // Plant Library connection state (Single Source of Truth)
+  libraryPlants: defaultPlants,
+  selectedPlantIds: ['mango-kesar', 'guava-allahabad', 'teak-sapling'],
+  selectedPlantSizes: {
+    'mango-kesar': 'M',
+    'guava-allahabad': 'M',
+    'teak-sapling': 'M',
+  },
+
+  syncWithLibrary: (libraryPlants, selectedPlantIds, selectedPlantSizes) => set((state) => {
+    const updatedLibrary = libraryPlants?.length ? libraryPlants : state.libraryPlants;
+    const updatedSelectedIds = Array.isArray(selectedPlantIds) ? selectedPlantIds : state.selectedPlantIds;
+    const updatedSelectedSizes = selectedPlantSizes || state.selectedPlantSizes || {};
+    
+    // Check if current border plant is still in available set, or switch to first available
+    const selectedSet = new Set(updatedSelectedIds);
+    const available = updatedLibrary
+      .filter(p => selectedSet.has(p.id))
+      .filter(p => p.sizeAvailability?.[updatedSelectedSizes[p.id] || 'M'] !== false);
+    
+    let borderType = state.borderZone.type;
+    if (available.length > 0) {
+      const match = available.find(p => (p.shortName || p.name) === borderType || p.name === borderType);
+      if (!match) {
+        borderType = available[0].shortName || available[0].name;
+      }
+    }
+
+    // Keep crop zone types aligned with shortlisted plants if available
+    let updatedCropZones = state.cropZones;
+    if (available.length > 0 && updatedCropZones.length > 0) {
+      updatedCropZones = updatedCropZones.map(zone => {
+        const isStillAvailable = available.some(p => (p.shortName || p.name) === zone.type || p.name === zone.type);
+        if (!isStillAvailable) {
+          const fallback = available[0];
+          return {
+            ...zone,
+            type: fallback.shortName || fallback.name,
+            p2p: fallback.p2p || zone.p2p,
+            r2r: fallback.r2r || zone.r2r,
+          };
+        }
+        return zone;
+      });
+    }
+    
+    return {
+      libraryPlants: updatedLibrary,
+      selectedPlantIds: updatedSelectedIds,
+      selectedPlantSizes: updatedSelectedSizes,
+      borderZone: { ...state.borderZone, type: borderType },
+      cropZones: updatedCropZones
+    };
+  }),
+
+  // Returns ONLY plants selected by the user from the Plant Library
+  getAvailablePlants: () => {
+    const state = get();
+    const library = state.libraryPlants || defaultPlants;
+    const selectedIds = new Set(state.selectedPlantIds || []);
+    const sizes = state.selectedPlantSizes || {};
+    
+    // Helper to enrich plant with selected nursery size, price, and size image
+    const enrich = (plant) => {
+      const selectedSize = sizes[plant.id] || 'M';
+      const sizePrices = plant.sizePrices || {
+        S: Math.round((plant.price || 100) * 0.68),
+        M: plant.price || 100,
+        L: Math.round((plant.price || 100) * 1.48),
+      };
+      const sizeAvailability = plant.sizeAvailability || { S: true, M: true, L: true };
+      const isAvailable = sizeAvailability[selectedSize] !== false;
+      const selectedPrice = Number(sizePrices[selectedSize] || plant.price || 100);
+      const sizeImage = plant.sizeImages?.[selectedSize] || plant.image;
+      return {
+        ...plant,
+        selectedSize,
+        selectedPrice,
+        sizePrices,
+        sizeAvailability,
+        isAvailable,
+        image: sizeImage,
+      };
+    };
+
+    // Return ONLY plants selected by user where the selected size is available
+    return library
+      .filter(p => selectedIds.has(p.id))
+      .map(enrich)
+      .filter(p => p.isAvailable);
+  },
+
   cropZones: [],  
-  borderZone: { id: 'border-zone', type: 'Coconut', targetPlants: 0 },
+  borderZone: { id: 'border-zone', type: 'Mango', targetPlants: 0 },
   
-  plants: [], // All intended plants
+  plants: [], // All placed/intended plants
   selectedPlantId: null,
   draggingPlantId: null,
   measuring: false,
@@ -138,78 +228,49 @@ export const useStore = create((set, get) => ({
 
   addFullRoad: (position) => set((state) => {
     const width = 12; // default 12ft road
-    const length = state.landSideFt;
-    let x = 0;
-    let z = 0;
-    let rotation = 0;
-    const halfL = state.landSideFt / 2;
+    const L = state.landSideFt;
+    let cx = 0, cz = 0, len = L, rot = 0;
 
-    if (position === 'top') { z = -halfL + width/2; rotation = Math.PI/2; }
-    else if (position === 'bottom') { z = halfL - width/2; rotation = Math.PI/2; }
-    else if (position === 'left') { x = -halfL + width/2; rotation = 0; }
-    else if (position === 'right') { x = halfL - width/2; rotation = 0; }
-    else if (position === 'center-h') { rotation = Math.PI/2; }
-    else if (position === 'center-v') { rotation = 0; }
-    
+    if (position === 'top') {
+      cx = 0; cz = -L / 2 + width / 2; len = L; rot = Math.PI / 2;
+    } else if (position === 'bottom') {
+      cx = 0; cz = L / 2 - width / 2; len = L; rot = Math.PI / 2;
+    } else if (position === 'left') {
+      cx = -L / 2 + width / 2; cz = 0; len = L; rot = 0;
+    } else if (position === 'right') {
+      cx = L / 2 - width / 2; cz = 0; len = L; rot = 0;
+    } else if (position === 'center-h') {
+      cx = 0; cz = 0; len = L; rot = Math.PI / 2;
+    } else if (position === 'center-v') {
+      cx = 0; cz = 0; len = L; rot = 0;
+    }
+
     const newItem = {
       id: uuidv4(),
       type: 'Road',
-      x,
-      z,
+      x: cx,
+      z: cz,
       width,
-      length,
-      rotation
+      length: len,
+      rotation: rot
     };
 
     return { infrastructure: [...state.infrastructure, newItem], selectedInfraId: newItem.id };
   }),
 
-  // --- SELECTION STATE ---
-  selectedPlantId: null,
-  draggingPlantId: null,
-  selectedInfraId: null,
-  draggingInfraId: null,
-  dragOffsetX: 0,
-  dragOffsetZ: 0,
-  selectedCropZoneId: null,
-  activeDrawTool: null, 
-  draftRoad: null, 
-  manualPlacementZoneId: null,
-  measuring: false,
-  measurePoints: [],
-
   updateInfrastructure: (id, updates) => set((state) => ({
-    infrastructure: state.infrastructure.map(inf => inf.id === id ? { ...inf, ...updates } : inf)
+    infrastructure: state.infrastructure.map(i => i.id === id ? { ...i, ...updates } : i)
   })),
 
   removeInfrastructure: (id) => set((state) => ({
-    infrastructure: state.infrastructure.filter(inf => inf.id !== id),
+    infrastructure: state.infrastructure.filter(i => i.id !== id),
     selectedInfraId: state.selectedInfraId === id ? null : state.selectedInfraId
   })),
 
-  // Unified Setters
-  setSelectedInfraId: (id) => set({ selectedInfraId: id, selectedPlantId: null, selectedCropZoneId: null, manualPlacementZoneId: null, measuring: false, activeDrawTool: null }),
-  setSelectedPlantId: (id) => set({ selectedPlantId: id, selectedInfraId: null, selectedCropZoneId: null, manualPlacementZoneId: null, measuring: false, activeDrawTool: null }),
-  setSelectedCropZoneId: (id) => set({ selectedCropZoneId: id, selectedPlantId: null, selectedInfraId: null, manualPlacementZoneId: null, measuring: false, activeDrawTool: null }),
-  
-  clearSelection: () => set({ selectedInfraId: null, selectedPlantId: null, selectedCropZoneId: null, manualPlacementZoneId: null, measuring: false, activeDrawTool: null }),
-
-  setDraggingInfraId: (id, offsetX = 0, offsetZ = 0) => set({ draggingInfraId: id, dragOffsetX: offsetX, dragOffsetZ: offsetZ }),
-  setDraggingPlantId: (id, offsetX = 0, offsetZ = 0) => set({ draggingPlantId: id, dragOffsetX: offsetX, dragOffsetZ: offsetZ }),
-  setActiveDrawTool: (tool) => set({ activeDrawTool: tool, selectedInfraId: null, selectedPlantId: null, selectedCropZoneId: null, manualPlacementZoneId: null }),
-  setDraftRoad: (draft) => set({ draftRoad: draft }),
-  setManualPlacementZoneId: (id) => set({ manualPlacementZoneId: id, activeDrawTool: null, selectedInfraId: null, selectedPlantId: null, selectedCropZoneId: null }),
-  setMeasuring: (val) => set({ measuring: val, measurePoints: [], activeDrawTool: null, selectedInfraId: null, selectedPlantId: null, selectedCropZoneId: null }),
-  
-  addMeasurePoint: (id) => set((state) => {
-    if (state.measurePoints.length < 2 && !state.measurePoints.includes(id)) {
-      return { measurePoints: [...state.measurePoints, id] }
-    }
-    if (state.measurePoints.length === 2) {
-      return { measurePoints: [id] }
-    }
-    return state;
-  }),
+  setSelectedInfraId: (id) => set({ selectedInfraId: id, selectedPlantId: null }),
+  setDraggingInfraId: (id) => set({ draggingInfraId: id }),
+  setActiveDrawTool: (tool) => set({ activeDrawTool: tool, manualPlacementZoneId: null }),
+  setDraftRoad: (road) => set({ draftRoad: road }),
 
   setLandAcres: (acres) => set((state) => {
     const { zones, landSide, interiorSide, interiorArea, borderArea } = calculateBlocks(acres, state.borderWidth, state.cropZones);
@@ -239,16 +300,20 @@ export const useStore = create((set, get) => ({
   
   addCropZone: (type) => set((state) => {
     const used = state.cropZones.reduce((sum, z) => sum + z.percentage, 0);
-    let perc = Math.min(100 - used, 10);
+    let perc = Math.min(100 - used, 20);
     if (perc <= 0) perc = 10; 
+    
+    const available = state.getAvailablePlants();
+    const chosenType = type || available[0]?.shortName || available[0]?.name || 'Mango';
+    const plantObj = (state.libraryPlants || defaultPlants).find(p => (p.shortName || p.name || p.type) === chosenType);
     
     const newZone = {
       id: uuidv4(),
-      type,
+      type: chosenType,
       percentage: perc,
-      p2p: 10,
-      r2r: 10,
-      targetPlants: 0
+      p2p: plantObj?.p2p || 15,
+      r2r: plantObj?.r2r || 15,
+      targetPlants: plantObj?.plantsPerAcre ? Math.round(plantObj.plantsPerAcre * (perc / 100)) : 0
     };
     
     const { zones, interiorArea, borderArea } = calculateBlocks(state.landAcres, state.borderWidth, [...state.cropZones, newZone]);
@@ -319,88 +384,81 @@ export const useStore = create((set, get) => ({
     
     const maxCols = Math.floor(zone.block.width / zone.p2p);
     const maxRows = Math.floor(zone.block.length / zone.r2r);
-    const capacity = maxCols * maxRows;
     
-    const actualToPlace = Math.min(zone.targetPlants, capacity);
+    let count = 0;
+    const target = zone.targetPlants > 0 ? zone.targetPlants : (maxCols * maxRows);
     
-    const gridWidth = maxCols * zone.p2p;
-    const gridLength = maxRows * zone.r2r;
+    const startX = zone.block.minX + (zone.p2p / 2);
+    const startZ = zone.block.minZ + (zone.r2r / 2);
     
-    const startX = zone.block.minX + (zone.block.width - gridWidth) / 2 + (zone.p2p / 2);
-    const startZ = zone.block.minZ + (zone.block.length - gridLength) / 2 + (zone.r2r / 2);
-    
-    let currentX = startX;
-    let currentZ = startZ;
-    let col = 0;
-    
-    for (let i = 0; i < actualToPlace; i++) {
-      newPlants.push({
-        id: uuidv4(),
-        zoneId,
-        type: zone.type,
-        x: currentX,
-        z: currentZ
-      });
-      
-      col++;
-      currentX += zone.p2p;
-      if (col >= maxCols) {
-        col = 0;
-        currentX = startX;
-        currentZ += zone.r2r;
+    for (let r = 0; r < maxRows; r++) {
+      for (let c = 0; c < maxCols; c++) {
+        if (count >= target) break;
+        newPlants.push({
+          id: uuidv4(),
+          zoneId,
+          type: zone.type,
+          x: startX + (c * zone.p2p),
+          z: startZ + (r * zone.r2r)
+        });
+        count++;
       }
+      if (count >= target) break;
     }
     
     return { plants: [...otherPlants, ...newPlants] };
   }),
 
   autoArrangeBorder: () => set((state) => {
+    const spacing = 20; // 20ft spacing along perimeter
     const otherPlants = state.plants.filter(p => p.zoneId !== 'border-zone');
-    let newPlants = [];
+    const newPlants = [];
     
-    const p = (state.landSideFt / 2) - (state.borderWidth / 2);
-    const spacing = 20; 
+    const halfL = state.landSideFt / 2;
+    const offset = state.borderWidth / 2;
+    const edge = halfL - offset;
     
-    for(let x = -p; x < p; x += spacing) {
-      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x, z: -p });
+    const steps = Math.floor(state.landSideFt / spacing);
+    
+    for (let i = 0; i < steps; i++) {
+      const pos = -halfL + (i * spacing) + (spacing / 2);
+      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x: pos, z: -edge });
+      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x: pos, z: edge });
+      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x: -edge, z: pos });
+      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x: edge, z: pos });
     }
-    for(let z = -p; z < p; z += spacing) {
-      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x: p, z });
-    }
-    for(let x = p; x > -p; x -= spacing) {
-      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x, z: p });
-    }
-    for(let z = p; z > -p; z -= spacing) {
-      newPlants.push({ id: uuidv4(), zoneId: 'border-zone', type: state.borderZone.type, x: -p, z });
-    }
-
+    
     return { plants: [...otherPlants, ...newPlants] };
   }),
-  
+
   updatePlantPosition: (id, x, z) => set((state) => ({
     plants: state.plants.map(p => p.id === id ? { ...p, x, z } : p)
   })),
-  
+
   removePlant: (id) => set((state) => ({
     plants: state.plants.filter(p => p.id !== id),
-    selectedPlantId: state.selectedPlantId === id ? null : state.selectedPlantId,
-    draggingPlantId: state.draggingPlantId === id ? null : state.draggingPlantId
+    selectedPlantId: state.selectedPlantId === id ? null : state.selectedPlantId
   })),
 
   duplicatePlant: (id) => set((state) => {
-    const plantToClone = state.plants.find(p => p.id === id);
-    if (!plantToClone) return state;
+    const plant = state.plants.find(p => p.id === id);
+    if (!plant) return state;
     const newPlant = {
-      ...plantToClone,
+      ...plant,
       id: uuidv4(),
-      x: plantToClone.x + 2,
-      z: plantToClone.z + 2
+      x: plant.x + 5,
+      z: plant.z + 5
     };
-    return {
-      plants: [...state.plants, newPlant],
-      selectedPlantId: newPlant.id
-    };
+    return { plants: [...state.plants, newPlant], selectedPlantId: newPlant.id };
   }),
-  
-  clearAllPlants: () => set({ plants: [], selectedPlantId: null, manualPlacementZoneId: null })
+
+  clearAllPlants: () => set({ plants: [], selectedPlantId: null }),
+
+  setSelectedPlantId: (id) => set({ selectedPlantId: id, selectedInfraId: null }),
+  setDraggingPlantId: (id) => set({ draggingPlantId: id }),
+  setMeasuring: (measuring) => set({ measuring, measurePoints: [] }),
+  addMeasurePoint: (plantId) => set((state) => {
+    const points = [...state.measurePoints, plantId];
+    return { measurePoints: points };
+  }),
 }));

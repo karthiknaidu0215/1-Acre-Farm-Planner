@@ -70,107 +70,142 @@ function Plant({ plant, allPlants, dimmed }) {
       metalness: 0,
     };
 
-    switch (plant.type) {
-      case 'Mango':
-        return (
-          <>
-            <mesh position={[0, 2.5, 0]} castShadow receiveShadow={!dimmed}>
-              <cylinderGeometry args={[0.5, 0.7, 5, 8]} />
-              <meshStandardMaterial color={trunkColor} {...barkProps} />
-            </mesh>
-            {/* Dense, wide, rounded canopy */}
-            <mesh position={[0, 6.5, 0]} castShadow receiveShadow={!dimmed}>
-              <dodecahedronGeometry args={[3.5, 2]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
-      case 'Banana':
-        return (
-          <>
-            <mesh position={[0, 2.5, 0]} castShadow receiveShadow={!dimmed}>
-              {/* Thicker, green pseudo-stem */}
-              <cylinderGeometry args={[0.5, 0.7, 5, 8]} />
-              <meshStandardMaterial color="#65a30d" {...leafProps} />
-            </mesh>
-            {/* Tall, jagged canopy to simulate large fronds */}
-            <mesh position={[0, 6, 0]} castShadow receiveShadow={!dimmed}>
-              <coneGeometry args={[3, 8, 5]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
-      case 'Arecanut':
-        return (
-          <>
-            {/* Very tall, thin, straight trunk */}
-            <mesh position={[0, 7, 0]} castShadow receiveShadow={!dimmed}>
-              <cylinderGeometry args={[0.2, 0.3, 14, 8]} />
-              <meshStandardMaterial color='#713f12' {...barkProps} />
-            </mesh>
-            {/* Small, spiky top canopy */}
-            <mesh position={[0, 14.5, 0]} castShadow receiveShadow={!dimmed}>
-              <dodecahedronGeometry args={[2.2, 1]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
-      case 'Guava':
-        return (
-          <>
-            <mesh position={[0, 1.5, 0]} castShadow receiveShadow={!dimmed}>
-              <cylinderGeometry args={[0.3, 0.4, 3, 8]} />
-              <meshStandardMaterial color={trunkColor} {...barkProps} />
-            </mesh>
-            <mesh position={[0, 4.5, 0]} castShadow receiveShadow={!dimmed}>
-              <dodecahedronGeometry args={[3, 1]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
-      case 'Mosambi':
-        return (
-          <>
-            <mesh position={[0, 2, 0]} castShadow receiveShadow={!dimmed}>
-              <cylinderGeometry args={[0.3, 0.4, 4, 8]} />
-              <meshStandardMaterial color={trunkColor} {...barkProps} />
-            </mesh>
-            <mesh position={[0, 5.5, 0]} castShadow receiveShadow={!dimmed}>
-              <dodecahedronGeometry args={[2.8, 2]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
-      case 'Coconut':
-        return (
-          <>
-            {/* Curved, thick trunk typical of coconut trees */}
-            <mesh position={[0, 6, 0]} castShadow receiveShadow={!dimmed}>
-              <cylinderGeometry args={[0.35, 0.5, 12, 8]} />
-              <meshStandardMaterial color='#78350f' {...barkProps} />
-            </mesh>
-            {/* Wide, flattened canopy for large fronds */}
-            <mesh position={[0, 12, 0]} scale={[1, 0.6, 1]} castShadow receiveShadow={!dimmed}>
-              <dodecahedronGeometry args={[4, 1]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
-      case 'Timber':
-      default:
-        return (
-          <>
-            <mesh position={[0, 6, 0]} castShadow receiveShadow={!dimmed}>
-              <cylinderGeometry args={[0.6, 0.8, 12, 8]} />
-              <meshStandardMaterial color={trunkColor} {...barkProps} />
-            </mesh>
-            <mesh position={[0, 14, 0]} castShadow receiveShadow={!dimmed}>
-              <coneGeometry args={[3, 8, 7]} />
-              <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
-            </mesh>
-          </>
-        )
+    const typeLower = (plant.type || '').toLowerCase();
+
+    if (typeLower.includes('mango')) {
+      return (
+        <>
+          <mesh position={[0, 2.5, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.5, 0.7, 5, 8]} />
+            <meshStandardMaterial color={trunkColor} {...barkProps} />
+          </mesh>
+          {/* Dense, wide, rounded canopy */}
+          <mesh position={[0, 6.5, 0]} castShadow receiveShadow={!dimmed}>
+            <dodecahedronGeometry args={[3.5, 2]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
     }
+
+    if (typeLower.includes('banana')) {
+      return (
+        <>
+          <mesh position={[0, 2.5, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.5, 0.7, 5, 8]} />
+            <meshStandardMaterial color="#65a30d" {...leafProps} />
+          </mesh>
+          <mesh position={[0, 6, 0]} castShadow receiveShadow={!dimmed}>
+            <coneGeometry args={[3, 8, 5]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    if (typeLower.includes('arecanut')) {
+      return (
+        <>
+          <mesh position={[0, 7, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.2, 0.3, 14, 8]} />
+            <meshStandardMaterial color='#713f12' {...barkProps} />
+          </mesh>
+          <mesh position={[0, 14.5, 0]} castShadow receiveShadow={!dimmed}>
+            <dodecahedronGeometry args={[2.2, 1]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    if (typeLower.includes('guava')) {
+      return (
+        <>
+          <mesh position={[0, 1.5, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.3, 0.4, 3, 8]} />
+            <meshStandardMaterial color={trunkColor} {...barkProps} />
+          </mesh>
+          <mesh position={[0, 4.5, 0]} castShadow receiveShadow={!dimmed}>
+            <dodecahedronGeometry args={[3, 1]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    if (typeLower.includes('mosambi') || typeLower.includes('citrus')) {
+      return (
+        <>
+          <mesh position={[0, 2, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.3, 0.4, 4, 8]} />
+            <meshStandardMaterial color={trunkColor} {...barkProps} />
+          </mesh>
+          <mesh position={[0, 5.5, 0]} castShadow receiveShadow={!dimmed}>
+            <dodecahedronGeometry args={[2.8, 2]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    if (typeLower.includes('coconut')) {
+      return (
+        <>
+          <mesh position={[0, 6, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.35, 0.5, 12, 8]} />
+            <meshStandardMaterial color='#78350f' {...barkProps} />
+          </mesh>
+          <mesh position={[0, 12, 0]} scale={[1, 0.6, 1]} castShadow receiveShadow={!dimmed}>
+            <dodecahedronGeometry args={[4, 1]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    if (typeLower.includes('moringa')) {
+      return (
+        <>
+          <mesh position={[0, 3, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.3, 0.45, 6, 8]} />
+            <meshStandardMaterial color={trunkColor} {...barkProps} />
+          </mesh>
+          <mesh position={[0, 7, 0]} castShadow receiveShadow={!dimmed}>
+            <dodecahedronGeometry args={[2.5, 1]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    if (typeLower.includes('jasmine') || typeLower.includes('flower')) {
+      return (
+        <>
+          <mesh position={[0, 1, 0]} castShadow receiveShadow={!dimmed}>
+            <cylinderGeometry args={[0.15, 0.25, 2, 6]} />
+            <meshStandardMaterial color={trunkColor} {...barkProps} />
+          </mesh>
+          <mesh position={[0, 2.5, 0]} castShadow receiveShadow={!dimmed}>
+            <sphereGeometry args={[1.8, 8, 8]} />
+            <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+          </mesh>
+        </>
+      )
+    }
+
+    // Default / Teak / Timber
+    return (
+      <>
+        <mesh position={[0, 6, 0]} castShadow receiveShadow={!dimmed}>
+          <cylinderGeometry args={[0.6, 0.8, 12, 8]} />
+          <meshStandardMaterial color={trunkColor} {...barkProps} />
+        </mesh>
+        <mesh position={[0, 14, 0]} castShadow receiveShadow={!dimmed}>
+          <coneGeometry args={[3, 8, 7]} />
+          <meshStandardMaterial color={isSelected ? selectedColor : baseColor} {...leafProps} emissive={isSelected ? baseColor : '#000000'} emissiveIntensity={isSelected ? 0.3 : 0} />
+        </mesh>
+      </>
+    )
   }
 
   const isBorderPlant = plant.zoneId === 'border-zone'
